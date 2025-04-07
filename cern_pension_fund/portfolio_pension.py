@@ -7,7 +7,7 @@ import os
 # -----------------------------
 # Configuration
 # -----------------------------
-swiss_tickers = ['UBSG.SW', 'NESN.SW', 'ROG.SW', 'CH0130242872.SW']
+swiss_tickers = ['UBSG.SW', 'NESN.SW', 'ROG.SW']
 europe_etfs = ['EUNL.DE', 'VWRL.AS', 'EXX6.DE', 'IEGA.L']
 global_mix = ['SPY', 'VEA', 'BND', 'GLD']  # Keep some global exposure
 tickers = swiss_tickers + europe_etfs + global_mix
@@ -18,7 +18,7 @@ end_date = '2023-12-31'
 # -----------------------------
 # Download historical data
 # -----------------------------
-data = yf.download(tickers, start=start_date, end=end_date)['Adj Close']
+data = yf.download(tickers, start=start_date, end=end_date, auto_adjust=False)
 data.dropna(inplace=True)
 
 # -----------------------------

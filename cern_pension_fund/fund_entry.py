@@ -117,14 +117,19 @@ if __name__ == "__main__":
     grad_fellow_df = estimate_graduate_fellow_contributions_df()
 
     # Save to CSV
-    save_contributions_to_csv(staff_df, "cern_pension_fund/staff_contributions.csv")
-    save_contributions_to_csv(grad_fellow_df, "cern_pension_fund/grad_fellow_contributions.csv")
+    save_contributions_to_csv(staff_df, "cern_pension_fund/csv/staff_contributions.csv")
+    save_contributions_to_csv(grad_fellow_df, "cern_pension_fund/csv/grad_fellow_contributions.csv")
 
     # Print summaries
     print("=== Staff Total Contributions ===")
-    print(calculate_total_contributions(staff_df))
+    total_staff_contributions = calculate_total_contributions(staff_df)
+    print(total_staff_contributions)
 
     print("\n=== Graduate/Fellow Total Contributions ===")
-    print(calculate_total_contributions(grad_fellow_df))
+    total_grad_fellow_contributions = calculate_total_contributions(grad_fellow_df)
+    print(total_grad_fellow_contributions)
+
+    print("\n=== Total Contributions ===")
+    print(f"{total_staff_contributions + total_grad_fellow_contributions}")
 
     print("\n✅ CSV files saved!")

@@ -6,8 +6,8 @@ from fund_exit import calculate_transfer_value, calculate_retirement_pension
 from staff_data import staff_category_grade_estimate, graduates_category_grade_estimate, staff_salary, graduate_fellow_salary
 
 # Load contributions
-staff_df = pd.read_csv("cern_pension_fund/staff_contributions.csv")
-grad_fellow_df = pd.read_csv("cern_pension_fund/grad_fellow_contributions.csv")
+staff_df = pd.read_csv("cern_pension_fund/csv/staff_contributions.csv")
+grad_fellow_df = pd.read_csv("cern_pension_fund/csv/grad_fellow_contributions.csv")
 
 # Summarize contributions
 staff_totals = calculate_total_contributions(staff_df)
