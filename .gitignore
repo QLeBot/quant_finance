@@ -1,3 +1,15 @@
 # Ignore all .env files
 .env*
 .env.local
+
+# Ignore pycache
+__pycache__
+
+# Ignore all .pyc files
+*.pyc
+
+# Ignore csv files
+*.csv
+
+# Ignore pdf files
+*.pdf
