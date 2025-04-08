@@ -125,3 +125,8 @@ with open(os.path.join(output_dir, "summary.txt"), "w") as f:
     f.write(f"Estimated Funding Ratio: {funding_ratio:.2f}\n")
 
 print("\n✅ Simulation complete. Results saved to /simulation_results/")
+
+# portfolio optimization
+#   mean variance optimization
+#   black litterman
+
