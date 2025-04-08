@@ -8,6 +8,8 @@ seaborn
 scikit-learn
 tensorflow
 keras
+ta
+dotenv
 
 # api
 yfinance

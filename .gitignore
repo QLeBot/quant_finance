@@ -13,3 +13,6 @@ __pycache__
 
 # Ignore pdf files
 *.pdf
+
+# ignore notes.md
+notes.md
