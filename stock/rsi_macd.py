@@ -1,3 +1,24 @@
+"""
+RSI : Relative Strength Index
+MACD : Moving Average Convergence Divergence
+
+RSI is a momentum oscillator that measures the speed and change of price movements. 
+It helps to identify overbought or oversold conditions.
+Range is between 0 and 100.
+Above 70 is overbought (sell signal), below 30 is oversold (buy signal).
+Default period is 14 for the lookback period (14 days, 14 hours, 14 minutes, etc.)
+
+MACD is a trend-following momentum indicator that shows the relationship between two exponential moving averages (EMAs) of a security's price.
+Default parameters are :
+MACD Line = 12-period EMA - 26-period EMA
+Signal Line = 9-period EMA of MACD Line
+MACD Histogram = MACD Line - Signal Line
+
+When MACD Line crosses above Signal Line, it is a buy signal.
+When MACD Line crosses below Signal Line, it is a sell signal.
+Histogram visualizes the difference between the MACD Line and the Signal Line.
+"""
+
 import os
 import pandas as pd
 import numpy as np
@@ -160,4 +181,4 @@ for symbol in symbols:
 print("\n📊 Backtest Summary:")
 summary_df = pd.DataFrame(results).T
 print(summary_df)
-summary_df.to_csv("stock/summary_rsi_macd.csv")
+summary_df.to_csv("stock/csv/summary_rsi_macd.csv")

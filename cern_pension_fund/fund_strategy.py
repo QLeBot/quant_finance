@@ -10,6 +10,45 @@ https://pensionfund.cern.ch/sites/default/files/2019-06/Statement%20of%20Investm
 
 Dive into the fund strategy
 https://pensionfund.cern.ch/sites/default/files/2024-09/Annual%20Report%20and%20Financial%20Statements%202023.pdf
+
+Observations and performance from the 2023 annual report:
+
+- Fixed income portfolio returned +2.74%. 
+    - The fixed-income markets experienced significant volatility.
+    - 4th quarter was the best performing quarter with a return of +5.12%
+    - In consideration of the market volatility, however, the portfolio was managed with a notable underweight with respect to the benchmark throughout the year.
+
+- Equity portfolio returned +11.82% after currency hedging costs.
+    - S&P500 had great performance as well as the Japanese Index.
+    - Strong performance in US market is driven by concentrated set of large companies and the optimistic market sentiment in AI.
+    - Challenging environment for active managers who are lagging behind the benchmarks.
+    - Significant strategic allocation to Japanese equities was an important source of performance for the Fund. Its conservative FX (Forex) hedging policy made it possible to insulate the performance from the currency (Japanese Yen) weakness.
+    - On a tactical level, the Fund retained an overweight to Europe and an underweight to emerging markets, both of which contributed positively to the performance.
+
+- Real-estate portfolio returned -18.78% after currency hedging costs.
+    - This loss reflects the decrease in the annual valuations of the Fund's directly held properties compared to their level at the end of 2022. 
+    - Directly held properties account for 92% of the Fund's real-estate portfolio.
+    - It was expected that the real-estate markets would be negatively impacted by the rise in government bond yields.
+    - The performance was also negatively impacted by a change in the valuation method for the Fund's real-estate portfolio.
+    - Using a DCF (Discounted Cash Flow) model instead of comparable sales method.
+
+- Private equity portfolio returned -1.85% after currency hedging costs
+    - Result is stemmed from the negative performance accross different strategies which cancelled out the positive performance of growth funds.
+    - Private market performance is reported with a delay of several months and that managers often smooth their performance over time.
+    - rebound in the second half of the year may not be reflected in the performance.
+    - The private equity market is ajusted downwards due to lower debt capacity (linked to higher interest rates ?)
+    - While private equity activities continued, dealmaking and fundraising were significantly reduced compared to previous years.
+    - Fund exposure is spread evenly between Europe and North America. 
+    - 91 active funds (involving 48 managers). buyout, growth and venture capital.
+
+- Hedge fund portfolio returned -4.25% after currency hedging costs.
+    - 14 funds 
+    - Several full redemptions were triggered by the time window of opportunity to allocate to high-conviction managers that remain hard-closed for extended periods of time.
+    - The fund has closed positions in previous funds and is reinvesting in funds that were not accepting new capital.
+    - Additional commitments totalling 97 MUSD were made across existing funds in view of the increased allocation to hedge funds in the 2024 SAA.
+    - The funds in the overlay portfolio delivered a muted performance as these strategies are expected to underperform in strong markets.
+
+- Commodities and precious metals portfolio returned +1.41% after currency hedging costs.
 """
 
 # Import the necessary libraries

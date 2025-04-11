@@ -1,3 +1,33 @@
+"""
+RSI : Relative Strength Index
+MACD : Moving Average Convergence Divergence
+
+RSI is a momentum oscillator that measures the speed and change of price movements. 
+It helps to identify overbought or oversold conditions.
+Range is between 0 and 100.
+Above 70 is overbought (sell signal), below 30 is oversold (buy signal).
+Default period is 14 for the lookback period (14 days, 14 hours, 14 minutes, etc.)
+
+MACD is a trend-following momentum indicator that shows the relationship between two exponential moving averages (EMAs) of a security's price.
+Default parameters are :
+MACD Line = 12-period EMA - 26-period EMA
+Signal Line = 9-period EMA of MACD Line
+MACD Histogram = MACD Line - Signal Line
+
+When MACD Line crosses above Signal Line, it is a buy signal.
+When MACD Line crosses below Signal Line, it is a sell signal.
+Histogram visualizes the difference between the MACD Line and the Signal Line.
+
+ROC : Rate of Change
+ROC is a momentum oscillator that measures the percentage change in price between the current price and the price a certain number of periods ago.
+ROC = ((Current Price - Price n periods ago) / Price n periods ago ) * 100
+ROC shows how fast the price is changing and in what direction.
+Above 0 price is rising (buy signal), below 0 price is falling (sell signal).
+Crossing 0 is often used as a buy or sell signal.
+ROC is very sensitive to sharp price changes — good for detecting breakouts.
+Best used with a baseline (zero line) or combined with other indicators (like RSI, MACD) to reduce false signals.
+"""
+
 import os
 import pandas as pd
 import numpy as np
@@ -20,8 +50,22 @@ API_SECRET = os.getenv('ALPACA_SECRET_KEY')
 # Initialize Alpaca client
 stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
 
+"""
+Observations:
+- TSLA seems to work in this strategy
+- The rest of the stocks are not performing well, either underperforming the buy&hold or loosing money
+
+Tickers:
+- ATO for Atos, overall downtrend from 2017 to 2024
+- MC.PA for Moet Hennessy Louis Vuitton, overall uptrend to mid 2021 then stable with big swings
+- NVDA for Nvidia, overall uptrend, big uptrend mid 2022 to end 2024. End 2024 seems to be the top
+- SPY for S&P 500, overall uptrend can be used as a benchmark for overall market
+- TSLA for Tesla, slow uptrend 2013 to mid 2020 then big uptrend from mid 2020 to mid/end 2021 then overall stable with big swings
+
+"""
+
 # Parameters
-symbols = ["NVDA", "SPY", "FEZ", "EWQ", "MSFT", "META", "PLTR"]
+symbols = ["NVDA", "SPY", "TSLA", "MC.PA", "ATO"]
 initial_cash = 10000
 start_date = datetime.datetime(2015, 1, 1)
 end_date = datetime.datetime(2024, 12, 31)
@@ -107,6 +151,9 @@ for symbol in symbols:
         df['macd'] = macd.macd()
         df['macd_signal'] = macd.macd_signal()
         macd_hist = macd.macd_diff()  # MACD Histogram
+
+        # Add ROC (Rate of Change) as a trend strength filter
+        df['roc'] = (df['close'] - df['close'].shift(10)) / df['close'].shift(10) * 100  # 10-day ROC
         
         # Print recent RSI and MACD values for debugging
         print(f"Last 10 RSI and MACD values for {symbol}:")
@@ -117,10 +164,11 @@ for symbol in symbols:
         recent_macd_cross = (df['macd'] > df['macd_signal']) & (df['macd'].shift(1) <= df['macd_signal'].shift(1))
         macd_hist_rising = macd_hist > macd_hist.shift(1)
         df['buy_signal'] = (
-            recent_rsi_cross |  # RSI cross above 30
+            (recent_rsi_cross |  # RSI cross above 30
             recent_macd_cross |                # MACD cross above signal
-            macd_hist_rising &                                # MACD histogram rising
+            macd_hist_rising) &                                # MACD histogram rising
             trend_filter & volume_filter                      # Trend & Volume filter
+            & df['roc'] > 0                                    # ROC > 0
         )
 
         # Sell signal: RSI < 70, MACD bearish cross, MACD histogram weakening
@@ -181,4 +229,4 @@ for symbol in symbols:
 print("\n📊 Backtest Summary:")
 summary_df = pd.DataFrame(results).T
 print(summary_df)
-summary_df.to_csv("stock/summary_rsi_macd_v2.csv")
+summary_df.to_csv("stock/csv/summary_rsi_macd_roc.csv")
