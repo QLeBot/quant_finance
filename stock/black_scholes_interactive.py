@@ -1,142 +1,39 @@
 """
-Black-Scholes Option Pricing Model
+This file takes the code from black_scholes.py and add a streamlit app to it.
+In this version the parameters have all to be set by the user.
 
-The Black-Scholes model is a mathematical model used for pricing call and put options. 
-It provides a theoretical estimate of the price of options based on various parameters.
-
-Key Components:
-- Call Option: Gives the holder the right, but not the obligation, to buy an asset at a specified price (strike price) on or before a specified date.
-- Put Option: Gives the holder the right, but not the obligation, to sell an asset at a specified price on or before a specified date.
-
-Parameters:
-- S (Spot Price / Current Stock Price): The current price of the underlying stock.
-- X (Strike Price): The price at which the option can be exercised.
-- T (Time to Expiration): The time remaining until the option's expiration date, expressed in years.
-- r (Risk-Free Rate): The annualized risk-free interest rate, typically the yield on government bonds.
-- sigma (Volatility): The annualized volatility of the stock's returns, representing the degree of variation in the stock price.
-
-The strike price (X) in options trading is typically a predefined value set by the options exchange or the parties involved in the contract. 
-It represents the price at which the option holder can buy (call option) or sell (put option) the underlying asset. 
-The strike price is not calculated based on the current price; rather, it is chosen based on the trader's strategy and market expectations.
-
-For simulation purposes, we can define the strike price based on the current price:
-1. At-the-Money (ATM): Set the strike price equal to the current stock price.
-2. In-the-Money (ITM): Set the strike price below the current stock price for call options or above for put options.
-3. Out-of-the-Money (OTM): Set the strike price above the current stock price for call options or below for put options.
-
-The risk-free rate is a theoretical interest rate that represents the return on an investment with zero risk. It is not about the percentage of risk a trader is willing to take; rather, it is linked to the global interest rate environment.
-Key Points about the Risk-Free Rate:
-1. Definition: The risk-free rate is the rate of return on an investment that is considered free of risk. In practice, it is often represented by the yield on government bonds, such as U.S. Treasury bills, which are considered to have negligible default risk.
-2. Purpose in Models: In financial models like the Black-Scholes option pricing model, the risk-free rate is used to discount future cash flows to their present value. It reflects the time value of money, which is the idea that a dollar today is worth more than a dollar in the future due to its potential earning capacity.
-3. Global Interest Rates: The risk-free rate is influenced by the central bank's monetary policy and the overall economic environment. For example, when central banks set low interest rates to stimulate the economy, the risk-free rate will also be low.
-4. Practical Use: In practice, the risk-free rate is often approximated using the yield on short-term government securities, such as the 3-month U.S. Treasury bill, because they are highly liquid and have a short maturity, minimizing interest rate risk.
-5. Role in Option Pricing: In the Black-Scholes model, the risk-free rate is used to calculate the present value of the option's strike price and to model the expected growth rate of the underlying asset in a risk-neutral world.
-Example:
-If the current yield on a 3-month U.S. Treasury bill is 0.5%, this would be used as the risk-free rate in financial models. It represents the return an investor would expect from an absolutely risk-free investment over that period.
-In summary, the risk-free rate is a fundamental component in financial modeling, reflecting the cost of capital and the time value of money in a risk-neutral context.
-
-Formulas:
-- d1 = (ln(S / X) + (r + 0.5 * sigma^2) * T) / (sigma * sqrt(T))
-- d2 = d1 - sigma * sqrt(T)
-- Call Price = S * N(d1) - X * exp(-r * T) * N(d2)
-- Put Price = X * exp(-r * T) * N(-d2) - S * N(-d1)
-
-Where N(d) is the cumulative distribution function of the standard normal distribution.
-
-In this implementation, we use the Alpaca API to fetch the current stock prices for a list of symbols. 
-The option prices are then calculated using the Black-Scholes formula for each stock.
-
-Note: The Alpaca API has a limit on historical data, so we fetch data from 365 days ago to 5 days ago.
+It also includes a heatmap of spot price relative to volatility for call and put prices.
 """
 
 import numpy as np
 import scipy.stats as stats
 import pandas as pd
-import os
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest
-from alpaca.data.timeframe import TimeFrame
-from dotenv import load_dotenv
-import datetime
 import yfinance as yf
 import streamlit as st
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-# Load environment variables
-load_dotenv()
-API_KEY = os.getenv('ALPACA_API_KEY')
-API_SECRET = os.getenv('ALPACA_SECRET_KEY')
-
-# Initialize Alpaca client
-stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
+from  matplotlib.colors import LinearSegmentedColormap
+c = ["darkred","red","lightcoral","white", "palegreen","green","darkgreen"]
+v = [0,.15,.4,.5,0.6,.9,1.]
+l = list(zip(v,c))
+cmap=LinearSegmentedColormap.from_list('rg',l, N=256)
 
 # Parameters
-symbols = ["AAPL", "GOOGL", "AMZN", "TSLA"]
-time_to_expiration = 1  # 1 year
+current_price = 100.00
+strike_price = 100.00
+time_to_expiration = 1.00  # 1 year
+risk_free_rate = 0.05
+volatility = 0.2
 
-def get_risk_free_rate_irx():
-    """
-    Fetches the latest U.S. 3-month T-bill yield using yfinance.
-    """
-    index = yf.Ticker("^IRX")
-    data = index.history(period="1d")
-    if not data.empty:
-        latest_yield = data['Close'].iloc[-1] / 100  # convert from percentage
-        return latest_yield
-    else:
-        raise ValueError("No data found for ^IRX.")
+min_spot_price = 0.01
+max_spot_price = 200.00
+min_volatility = 0.01
+max_volatility = 1.00
 
-def get_risk_free_rate_tnx():
-    """
-    Fetches the latest U.S. 10-Year Treasury yield using yfinance.
-    This is often used as a proxy for the risk-free rate in USD.
-    """
-    # '^TNX' is the Yahoo Finance symbol for the 10-Year Treasury Note yield (multiplied by 100)
-    tnx = yf.Ticker("^TNX")
-    data = tnx.history(period="1d")
-    
-    if not data.empty:
-        latest_yield = data['Close'].iloc[-1] / 100  # convert from percentage
-        return latest_yield
-    else:
-        raise ValueError("No data found for ^TNX.")
-
-risk_free_rate_irx = get_risk_free_rate_irx()
-print(f"Risk-free rate (3-month T-bill): {risk_free_rate_irx:.4%}")
-
-risk_free_rate_tnx = get_risk_free_rate_tnx()
-print(f"Risk-free rate (10Y Treasury): {risk_free_rate_tnx:.4%}")
-
-# set risk-free rate to the desired calculation method
-#risk_free_rate = 0.05  # 5% annual risk-free rate
-risk_free_rate = risk_free_rate_irx
-
-# Fetch historical stock prices using Alpaca
-historical_prices = {}
-request_params = StockBarsRequest(
-    symbol_or_symbols=symbols,
-    timeframe=TimeFrame.Day,
-    start=datetime.datetime.now() - datetime.timedelta(days=365),  # 1 year of data
-    end=datetime.datetime.now() - datetime.timedelta(days=5)
-)
-all_data = stock_client.get_stock_bars(request_params).df
-
-# Calculate historical volatility
-volatilities = {}
-for symbol in symbols:
-    df = all_data.loc[symbol].copy()
-    df['returns'] = df['close'].pct_change()
-    
-    volatility = df['returns'].std() * np.sqrt(252)  # Annualize the volatility
-    volatilities[symbol] = volatility
-
-# Fetch current stock prices
-current_prices = {}
-for symbol in symbols:
-    current_prices[symbol] = all_data.loc[symbol]['close'].iloc[-1]
-
-# Two method for strike price, 1. fixed strike price, 2. 5% above current price
-#strike_price = 100  # Example strike price
-strike_prices = {symbol: current_prices[symbol] * 1.05 for symbol in symbols}  # Example: 5% above current price
+call_purchase_price = 0.00
+put_purchase_price = 0.00
+num_contracts = 1
 
 def black_scholes_call(S, X, T, r, sigma):
     """Calculate the Black-Scholes price for a European call option."""
@@ -152,47 +49,116 @@ def black_scholes_put(S, X, T, r, sigma):
     put_price = X * np.exp(-r * T) * stats.norm.cdf(-d2) - S * stats.norm.cdf(-d1)
     return put_price
 
-# Calculate option prices
-results = []
 
-for symbol in symbols:
-    S = current_prices[symbol]
-    X = strike_prices[symbol]
-    sigma = volatilities[symbol]
-    call_price = black_scholes_call(S, X, time_to_expiration, risk_free_rate, sigma)
-    put_price = black_scholes_put(S, X, time_to_expiration, risk_free_rate, sigma)
-    results.append({
-        "Symbol": symbol,
-        "Current Price": round(S, 2),
-        "Strike Price": round(X, 2),
-        "Call Price": round(call_price, 2),
-        "Put Price": round(put_price, 2),
-        "Volatility": round(sigma, 4)
-    })
 
-# Convert results to DataFrame and display
-results_df = pd.DataFrame(results)
-print("\n📊 Black-Scholes Option Prices:")
-print(results_df)
+# ===== Streamlit App =====
+st.set_page_config(layout="wide")
 
 # Streamlit app
 st.title("Black-Scholes Option Pricing Model")
 
 # Input fields for parameters
-st.sidebar.header("Input Parameters")
+st.sidebar.header("Purchase Price")
+call_purchase_price = st.sidebar.number_input("Call Purchase Price", value=0.00, step=0.01)
+put_purchase_price = st.sidebar.number_input("Put Purchase Price", value=0.00, step=0.01)
+num_contracts = st.sidebar.number_input("Number of Contracts", value=1, step=1)
 
 # Input fields for parameters
-symbol = st.sidebar.selectbox("Select Stock Symbol", symbols)
-current_price = st.sidebar.number_input("Current Stock Price", value=current_prices[symbol])
-strike_price = st.sidebar.number_input("Strike Price", value=strike_prices[symbol])
-time_to_expiration = st.sidebar.number_input("Time to Expiration (years)", value=time_to_expiration)
-risk_free_rate = st.sidebar.number_input("Risk-Free Rate (annual)", value=risk_free_rate)
+st.sidebar.header("Input Parameters")
+current_price = st.sidebar.number_input("Current Stock Price", value=current_price, step=0.01)
+strike_price = st.sidebar.number_input("Strike Price", value=strike_price, step=0.01)
+time_to_expiration = st.sidebar.number_input("Time to Expiration (years)", value=time_to_expiration, step=0.01)
+volatility = st.sidebar.number_input("Volatility (annual)", value=volatility, step=0.01)
+risk_free_rate = st.sidebar.number_input("Risk-Free Rate (annual)", value=risk_free_rate, step=0.01)
 
-# Calculate option prices
-call_price = black_scholes_call(current_price, strike_price, time_to_expiration, risk_free_rate, volatility)
-put_price = black_scholes_put(current_price, strike_price, time_to_expiration, risk_free_rate, volatility)
+# Input fields for parameters for the heatmap
+st.sidebar.header("Input Parameters for Heatmap")
+min_spot_price = st.sidebar.number_input("Min Spot Price", value=min_spot_price, step=0.01)
+max_spot_price = st.sidebar.number_input("Max Spot Price", value=max_spot_price, step=0.01)
+min_volatility = st.sidebar.slider("Min Volatility", value=min_volatility, min_value=0.01, max_value=1.00, step=0.01)
+max_volatility = st.sidebar.slider("Max Volatility", value=max_volatility, min_value=0.01, max_value=1.00, step=0.01)
 
-# Display results
-st.subheader("Option Prices")
-st.write(f"Call Price: ${call_price:.2f}")
-st.write(f"Put Price: ${put_price:.2f}")
+st.header("Call & Put Prices")
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown(f'<div style="background-color:rgb(77, 255, 0); color:black; padding: 10px; border-radius: 10px; font-size: 20px; text-align: center;">Call Price <br>${black_scholes_call(current_price, strike_price, time_to_expiration, risk_free_rate, volatility):.2f}</div>', unsafe_allow_html=True)
+with col2:
+    st.markdown(f'<div style="background-color:rgb(252, 0, 0); color:black; padding: 10px; border-radius: 10px; font-size: 20px; text-align: center;">Put Price <br>${black_scholes_put(current_price, strike_price, time_to_expiration, risk_free_rate, volatility):.2f}</div>', unsafe_allow_html=True)
+
+#call_pnl_price = (black_scholes_call(current_price, strike_price, time_to_expiration, risk_free_rate, volatility) - call_purchase_price) * num_contracts
+#put_pnl_price = (black_scholes_put(current_price, strike_price, time_to_expiration, risk_free_rate, volatility) - put_purchase_price) * num_contracts
+
+# Display PnL
+st.header("Profit and Loss (PnL)")
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown(f'<div style="background-color:rgb(77, 255, 0); color:black; padding: 10px; border-radius: 10px; font-size: 20px; text-align: center;">Call PnL <br>${(black_scholes_call(current_price, strike_price, time_to_expiration, risk_free_rate, volatility) - call_purchase_price) * num_contracts:.2f}</div>', unsafe_allow_html=True)
+with col2:
+    st.markdown(f'<div style="background-color:rgb(252, 0, 0); color:black; padding: 10px; border-radius: 10px; font-size: 20px; text-align: center;">Put PnL <br>${(black_scholes_put(current_price, strike_price, time_to_expiration, risk_free_rate, volatility) - put_purchase_price) * num_contracts:.2f}</div>', unsafe_allow_html=True)
+
+
+# ===== Call and Put Prices =====
+spot_price_range = np.linspace(min_spot_price, max_spot_price, 10)  # Example range
+volatility_range = np.linspace(min_volatility, max_volatility, 10)
+
+call_price_matrix = np.zeros((len(volatility_range), len(spot_price_range)))
+put_price_matrix = np.zeros((len(volatility_range), len(spot_price_range)))
+
+for i, vol in enumerate(volatility_range):
+    for j, sp in enumerate(spot_price_range):
+        call_price_matrix[i, j] = black_scholes_call(sp, strike_price, time_to_expiration, risk_free_rate, vol)
+        put_price_matrix[i, j] = black_scholes_put(sp, strike_price, time_to_expiration, risk_free_rate, vol)
+
+fig_call, ax_call = plt.subplots(figsize=(12, 8))
+sns.heatmap(call_price_matrix, ax=ax_call, cmap=cmap, xticklabels=np.round(spot_price_range, 2), yticklabels=np.round(volatility_range, 2), cbar_kws={'label': 'Call Price'}, annot=True, fmt='.2f', square=True)
+ax_call.set_title('CALL')
+ax_call.set_xlabel('Spot Price')
+ax_call.set_ylabel('Volatility')
+
+fig_put, ax_put = plt.subplots(figsize=(12, 8))
+sns.heatmap(put_price_matrix, ax=ax_put, cmap=cmap, xticklabels=np.round(spot_price_range, 2), yticklabels=np.round(volatility_range, 2), cbar_kws={'label': 'Put Price'}, annot=True, fmt='.2f', square=True)
+ax_put.set_title('PUT')
+ax_put.set_xlabel('Spot Price')
+ax_put.set_ylabel('Volatility')
+
+# ===== PnL =====
+#call_pnl_price = (black_scholes_call(current_price, strike_price, time_to_expiration, risk_free_rate, volatility) - call_purchase_price) * num_contracts
+#put_pnl_price = (black_scholes_put(current_price, strike_price, time_to_expiration, risk_free_rate, volatility) - put_purchase_price) * num_contracts
+
+call_pnl_matrix = np.zeros((len(volatility_range), len(spot_price_range)))
+put_pnl_matrix = np.zeros((len(volatility_range), len(spot_price_range)))
+
+for i, vol in enumerate(volatility_range):
+    for j, sp in enumerate(spot_price_range):
+        call_pnl_matrix[i, j] = (black_scholes_call(sp, strike_price, time_to_expiration, risk_free_rate, vol) - call_purchase_price) * num_contracts
+        put_pnl_matrix[i, j] = (black_scholes_put(sp, strike_price, time_to_expiration, risk_free_rate, vol) - put_purchase_price) * num_contracts 
+
+# Heatmap of call and put PnL
+fig_call_pnl, ax_call_pnl = plt.subplots(figsize=(12, 8))
+sns.heatmap(call_pnl_matrix, ax=ax_call_pnl, cmap=cmap, xticklabels=np.round(spot_price_range, 2), yticklabels=np.round(volatility_range, 2), cbar_kws={'label': 'Call PnL'}, annot=True, fmt='.2f', square=True)
+ax_call_pnl.set_title('CALL PnL')
+ax_call_pnl.set_xlabel('Spot Price')
+ax_call_pnl.set_ylabel('Volatility')
+
+fig_put_pnl, ax_put_pnl = plt.subplots(figsize=(12, 8))
+sns.heatmap(put_pnl_matrix, ax=ax_put_pnl, cmap=cmap, xticklabels=np.round(spot_price_range, 2), yticklabels=np.round(volatility_range, 2), cbar_kws={'label': 'Put PnL'}, annot=True, fmt='.2f', square=True)
+ax_put_pnl.set_title('PUT PnL')
+ax_put_pnl.set_xlabel('Spot Price')
+ax_put_pnl.set_ylabel('Volatility')
+
+
+# Display heatmap of call and put prices
+st.header("Heatmap of Call and Put Prices")
+col1, col2 = st.columns(2)
+with col1:
+    st.pyplot(fig_call)
+with col2:
+    st.pyplot(fig_put)
+
+# Display heatmap of call and put PnL
+st.header("Heatmap of Call and Put PnL")
+col3, col4 = st.columns(2)
+with col3:
+    st.pyplot(fig_call_pnl)
+with col4:
+    st.pyplot(fig_put_pnl)
