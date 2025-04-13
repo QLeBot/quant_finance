@@ -21,50 +21,6 @@ API_SECRET = os.getenv('ALPACA_SECRET_KEY')
 # Initialize Alpaca client
 stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
 
-"""
-Observations:
-- TSLA seems to work in this strategy
-- The rest of the stocks are not performing well, either underperforming the buy&hold or loosing money
-
-Tickers:
-- ATO for Atmos.
-- ATOS for Atos, overall downtrend from 2017 to 2024
-- MC.PA for Moet Hennessy Louis Vuitton, overall uptrend to mid 2021 then stable with big swings
-- NVDA for Nvidia, overall uptrend, big uptrend mid 2022 to end 2024. End 2024 seems to be the top
-- SPY for S&P 500, overall uptrend can be used as a benchmark for overall market
-- TSLA for Tesla, slow uptrend 2013 to mid 2020 then big uptrend from mid 2020 to mid/end 2021 then overall stable with big swings
-
-"""
-
-# Parameters
-#symbols = ["NVDA", "SPY", "TSLA", "MC.PA", "ATO", "ATOS"]
-#symbols = ["NVDA"]
-#symbols = ["NVDA", "ATOS"]
-symbols = ["NVDA", "ATOS" , "ATO"]
-#symbols = ["SPY"]
-initial_cash = 10000
-start_date = datetime.datetime(2022, 1, 1)
-end_date = datetime.datetime(2024, 12, 31)
-
-# Request 1-hour data for primary analysis and 4-hour data for confirmation
-request_params_1h = StockBarsRequest(
-    symbol_or_symbols=symbols,
-    timeframe=TimeFrame.Hour,
-    start=start_date,
-    end=end_date
-)
-all_data_1h = stock_client.get_stock_bars(request_params_1h).df
-all_data_1h = all_data_1h.reset_index()  # bring 'symbol' and 'timestamp' into columns
-
-request_params_4h = StockBarsRequest(
-    symbol_or_symbols=symbols,
-    timeframe=TimeFrame.Hour,
-    start=start_date,
-    end=end_date
-)
-all_data_4h = stock_client.get_stock_bars(request_params_4h).df
-all_data_4h = all_data_4h.reset_index()  # bring 'symbol' and 'timestamp' into columns
-
 # Stock split data for multiple symbols
 stock_splits = {
     'NVDA': {
@@ -93,9 +49,76 @@ stock_splits = {
         '2025-04-24': 0.0001
     }
 }
+
+"""
+Observations:
+- TSLA seems to work in this strategy
+- The rest of the stocks are not performing well, either underperforming the buy&hold or loosing money
+
+Tickers:
+- ATO for Atmos.
+- ATOS for Atos, overall downtrend from 2017 to 2024
+- MC.PA for Moet Hennessy Louis Vuitton, overall uptrend to mid 2021 then stable with big swings
+- NVDA for Nvidia, overall uptrend, big uptrend mid 2022 to end 2024. End 2024 seems to be the top
+- SPY for S&P 500, overall uptrend can be used as a benchmark for overall market
+- TSLA for Tesla, slow uptrend 2013 to mid 2020 then big uptrend from mid 2020 to mid/end 2021 then overall stable with big swings
+
+"""
+
+# Parameters
+#symbols = ["NVDA", "SPY", "TSLA", "MC.PA", "ATO", "ATOS"]
+#symbols = ["NVDA"]
+#symbols = ["NVDA", "ATOS"]
+symbols = ["NVDA", "ATOS" , "ATO"]
+#symbols = ["SPY"]
+initial_cash = 10000
+
+start_date = datetime.datetime(2022, 1, 1)
+end_date = datetime.datetime(2024, 12, 31)
+
+# Request 1-hour data for primary analysis and 4-hour data for confirmation
+request_params_1h = StockBarsRequest(
+    symbol_or_symbols=symbols,
+    timeframe=TimeFrame.Hour,
+    start=start_date,
+    end=end_date
+)
+all_data_1h = stock_client.get_stock_bars(request_params_1h).df
+all_data_1h = all_data_1h.reset_index()  # bring 'symbol' and 'timestamp' into columns
+
+request_params_4h = StockBarsRequest(
+    symbol_or_symbols=symbols,
+    timeframe=TimeFrame.Hour,
+    start=start_date,
+    end=end_date
+)
+all_data_4h = stock_client.get_stock_bars(request_params_4h).df
+all_data_4h = all_data_4h.reset_index()  # bring 'symbol' and 'timestamp' into columns
+
+request_params_day = StockBarsRequest(
+    symbol_or_symbols=symbols,
+    timeframe=TimeFrame.Day,
+    start=start_date,
+    end=end_date
+)
+all_data_day = stock_client.get_stock_bars(request_params_day).df
+all_data_day = all_data_day.reset_index()  # bring 'symbol' and 'timestamp' into columns
+
+request_params_week = StockBarsRequest(
+    symbol_or_symbols=symbols,
+    timeframe=TimeFrame.Week,
+    start=start_date,
+    end=end_date
+)
+all_data_week = stock_client.get_stock_bars(request_params_week).df
+all_data_week = all_data_week.reset_index()  # bring 'symbol' and 'timestamp' into columns
+
+
 # Convert the 'timestamp' column to datetime if not already
 all_data_1h['timestamp'] = pd.to_datetime(all_data_1h['timestamp'])
 all_data_4h['timestamp'] = pd.to_datetime(all_data_4h['timestamp'])
+all_data_day['timestamp'] = pd.to_datetime(all_data_day['timestamp'])
+all_data_week['timestamp'] = pd.to_datetime(all_data_week['timestamp'])
 
 # Adjust prices and volumes for stock splits for each symbol in both dataframes
 for symbol, splits in stock_splits.items():
@@ -111,6 +134,14 @@ for symbol, splits in stock_splits.items():
         all_data_4h.loc[mask_4h, 'close'] /= split_ratio
         all_data_4h.loc[mask_4h, 'volume'] *= split_ratio
 
+        mask_day = (all_data_day['symbol'] == symbol) & (all_data_day['timestamp'] < split_date)
+        all_data_day.loc[mask_day, 'close'] /= split_ratio
+        all_data_day.loc[mask_day, 'volume'] *= split_ratio
+
+        mask_week = (all_data_week['symbol'] == symbol) & (all_data_week['timestamp'] < split_date)
+        all_data_week.loc[mask_week, 'close'] /= split_ratio
+        all_data_week.loc[mask_week, 'volume'] *= split_ratio
+
 # Function to compute indicators for a given dataframe
 def compute_indicators(df):
     df['ma200'] = df['close'].rolling(window=200).mean()
@@ -121,16 +152,15 @@ def compute_indicators(df):
     df['macd_hist'] = macd.macd_diff()
     return df
 
-
-# Compute indicators for both 1-hour and 4-hour data
-#all_data_1h, macd_hist_1h = compute_indicators(all_data_1h)
-#all_data_4h, macd_hist_4h = compute_indicators(all_data_4h)
-
 all_data_1h = compute_indicators(all_data_1h)
 all_data_4h = compute_indicators(all_data_4h)
+all_data_day = compute_indicators(all_data_day)
+all_data_week = compute_indicators(all_data_week)
 
 macd_hist_1h = all_data_1h['macd_hist'].iloc[-1]
 macd_hist_4h = all_data_4h['macd_hist'].iloc[-1]
+macd_hist_day = all_data_day['macd_hist'].iloc[-1]
+macd_hist_week = all_data_week['macd_hist'].iloc[-1]
 
 def compute_atr(df, period=14):
     df['H-L'] = df['high'] - df['low']
@@ -241,7 +271,9 @@ for symbol in symbols:
     try:
         df_1h = all_data_1h[all_data_1h['symbol'] == symbol].copy()
         df_4h = all_data_4h[all_data_4h['symbol'] == symbol].copy()
-        if df_1h.empty or df_4h.empty:
+        df_day = all_data_day[all_data_day['symbol'] == symbol].copy()
+        df_week = all_data_week[all_data_week['symbol'] == symbol].copy()
+        if df_1h.empty or df_4h.empty or df_day.empty or df_week.empty:
             print(f"⚠️ No data for {symbol}")
             continue
 
@@ -249,14 +281,21 @@ for symbol in symbols:
         missing_values = df_1h.isnull().sum()
         print(f"Missing values in each column for {symbol}:")
         print(missing_values)
+        # fill missing values with forward fill
+        df_1h = df_1h.ffill()
+        df_4h = df_4h.ffill()
+        df_day = df_day.ffill()
+        df_week = df_week.ffill()
 
         # Check for outliers in the 'close' prices
         # Using a simple statistical method to identify outliers
+        """
         q1 = df_1h['close'].quantile(0.25)
         q3 = df_1h['close'].quantile(0.75)
         iqr = q3 - q1
         outliers = df_1h[(df_1h['close'] < (q1 - 1.5 * iqr)) | (df_1h['close'] > (q3 + 1.5 * iqr))]
-        #print(f"Number of outliers in 'close' prices for {symbol}: {len(outliers)}")
+        print(f"Number of outliers in 'close' prices for {symbol}: {len(outliers)}")
+        """
 
         # Check data range
         #print(f"Data range from {df_1h['timestamp'].min()} to {df_1h['timestamp'].max()} for {symbol}")
@@ -275,6 +314,8 @@ for symbol in symbols:
         # Forward fill daily trend into 1H data
         df_1h = df_1h.reset_index()  # Moves datetime index to a 'timestamp' column
         df_4h = df_4h.reset_index()
+        df_day = df_day.reset_index()
+        df_week = df_week.reset_index()
 
         data_merged = pd.merge_asof(
             df_1h.sort_values('timestamp'),
@@ -283,12 +324,30 @@ for symbol in symbols:
             direction='backward',
             suffixes=('', '_4h')
         )
+        # =========== MAY NEED TO REMOVE THIS ============
+        # Adding daily data
+        data_merged = pd.merge_asof(
+            data_merged.sort_values('timestamp'),
+            df_day[['timestamp', 'rsi', 'macd', 'macd_signal', 'macd_hist']],
+            on='timestamp',
+            direction='backward',
+            suffixes=('', '_day')
+        )
+        # Adding weekly data
+        data_merged = pd.merge_asof(
+            data_merged.sort_values('timestamp'),
+            df_week[['timestamp', 'rsi', 'macd', 'macd_signal', 'macd_hist']],
+            on='timestamp',
+            direction='backward',
+            suffixes=('', '_week')
+        )
+        # ==================================================
 
-        # Trend filter: 200-day Moving Average
+        # Trend filter: 200-day Moving Average ; 200 day = 4800 hours
         #data_merged['trend'].fillna(method='ffill', inplace=True)
         trend_filter = data_merged['close'] > data_merged['close'].rolling(window=4800).mean()
 
-        # Volume filter: Check if volume is higher than average (20-day)
+        # Volume filter: Check if volume is higher than average (20-day) ; 20 day = 480 hours
         data_merged['avg_volume'] = data_merged['volume'].rolling(window=480).mean()
         volume_filter = data_merged['volume'] > data_merged['avg_volume']
         
@@ -309,11 +368,21 @@ for symbol in symbols:
         recent_macd_cross_4h = (data_merged['macd_4h'] > data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
         macd_hist_rising_4h = (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
 
+        recent_rsi_cross_day = (data_merged['rsi_day'] > rsi_threshold) & (data_merged['rsi_day'].shift(1) <= rsi_threshold)
+        recent_macd_cross_day = (data_merged['macd_day'] > data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
+        macd_hist_rising_day = (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
+
+        recent_rsi_cross_week = (data_merged['rsi_week'] > rsi_threshold) & (data_merged['rsi_week'].shift(1) <= rsi_threshold)
+        recent_macd_cross_week = (data_merged['macd_week'] > data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
+        macd_hist_rising_week = (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
+
         # Buy signal: 1H signal + 4H confirmation
         buy_signal = (
-            # Follows very well the benchmark with better performance in ATOS
+            # Best setting yet for all symbols
             recent_rsi_cross_1h | (recent_macd_cross_1h | macd_hist_rising_1h)
             & (recent_macd_cross_4h | macd_hist_rising_4h)
+            & (recent_macd_cross_day | macd_hist_rising_day)
+            & (recent_macd_cross_week | macd_hist_rising_week)
             
             #(recent_rsi_cross_1h & (recent_macd_cross_1h | macd_hist_rising_1h)) &
             #(recent_rsi_cross_4h & (recent_macd_cross_4h | macd_hist_rising_4h)) #&
@@ -331,11 +400,21 @@ for symbol in symbols:
         recent_macd_drop_4h = (data_merged['macd_4h'] < data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
         macd_hist_falling_4h = (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
 
+        recent_rsi_drop_day = (data_merged['rsi_day'] < (100 - rsi_threshold)) & (data_merged['rsi_day'].shift(1) >= (100 - rsi_threshold))
+        recent_macd_drop_day = (data_merged['macd_day'] < data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
+        macd_hist_falling_day = (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
+
+        recent_rsi_drop_week = (data_merged['rsi_week'] < (100 - rsi_threshold)) & (data_merged['rsi_week'].shift(1) >= (100 - rsi_threshold))
+        recent_macd_drop_week = (data_merged['macd_week'] < data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
+        macd_hist_falling_week = (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
+
         # Sell signal: 1H signal + 4H confirmation
         sell_signal = (
-            # Follows very well the benchmark with better performance in ATOS
+            # Best setting yet for all symbols
             recent_rsi_drop_1h & (recent_macd_drop_1h | macd_hist_falling_1h)
             & (recent_macd_drop_4h | macd_hist_falling_4h)
+            | (recent_macd_drop_day | macd_hist_falling_day)
+            | (recent_macd_drop_week | macd_hist_falling_week)
             
             #(recent_rsi_drop_1h & (recent_macd_drop_1h & macd_hist_falling_1h)) &
             #(recent_rsi_drop_4h & (recent_macd_drop_4h & macd_hist_falling_4h)) #&
