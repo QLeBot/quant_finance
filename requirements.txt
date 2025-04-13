@@ -10,6 +10,9 @@ tensorflow
 keras
 ta
 dotenv
+streamlit
+backtesting
+pytz
 
 # api
 yfinance
