@@ -132,6 +132,51 @@ all_data_4h = compute_indicators(all_data_4h)
 macd_hist_1h = all_data_1h['macd_hist'].iloc[-1]
 macd_hist_4h = all_data_4h['macd_hist'].iloc[-1]
 
+def compute_atr(df, period=14):
+    df['H-L'] = df['high'] - df['low']
+    df['H-PC'] = abs(df['high'] - df['close'].shift(1))
+    df['L-PC'] = abs(df['low'] - df['close'].shift(1))
+    
+    df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
+    df['ATR'] = df['TR'].rolling(window=period).mean()
+    
+    df.drop(['H-L', 'H-PC', 'L-PC', 'TR'], axis=1, inplace=True)
+    return df
+
+def apply_trailing_stop(df, atr_multiplier=3):
+    position = 0
+    entry_price = 0
+    trailing_stop = 0
+    df['trailing_stop'] = np.nan
+    df['sell_signal'] = False  # ensure column exists
+
+    for i in range(1, len(df)):
+        if df['buy_signal'].iloc[i] and position == 0:
+            # Enter trade
+            entry_price = df['close'].iloc[i]
+            atr = df['ATR'].iloc[i]
+            trailing_stop = entry_price - atr_multiplier * atr
+            position = 1
+
+        elif position == 1:
+            # Update trailing stop if price rises
+            atr = df['ATR'].iloc[i]
+            new_stop = df['close'].iloc[i] - atr_multiplier * atr
+            trailing_stop = max(trailing_stop, new_stop)
+            df.loc[df.index[i], 'trailing_stop'] = trailing_stop
+
+            # Check for exit condition
+            if df['close'].iloc[i] <= trailing_stop:
+                df.loc[df.index[i], 'sell_signal'] = True
+                position = 0
+                entry_price = 0
+                trailing_stop = 0
+
+    return df
+
+#all_data_1h = compute_atr(all_data_1h)
+#all_data_1h = apply_trailing_stop(all_data_1h, atr_multiplier=3)
+
 # Function to compute performance metrics
 def compute_metrics(df, initial_cash):
     final_value = df['portfolio_value'].iloc[-1]
@@ -139,7 +184,14 @@ def compute_metrics(df, initial_cash):
     roi = (profit / initial_cash) * 100
 
     returns = df['portfolio_value'].pct_change().dropna()
-    sharpe_ratio = np.mean(returns) / np.std(returns) * np.sqrt(252) if np.std(returns) > 0 else np.nan
+
+    # Infer timeframe from median time difference
+    time_diffs = pd.to_datetime(df['timestamp']).diff().dropna()
+    median_diff = time_diffs.median()
+    seconds_per_period = median_diff.total_seconds()
+
+    periods_per_year = 365.25 * 24 * 3600 / seconds_per_period
+    sharpe_ratio = (np.mean(returns) / np.std(returns)) * np.sqrt(periods_per_year) if np.std(returns) > 0 else np.nan
 
     running_max = df['portfolio_value'].cummax()
     drawdown = (df['portfolio_value'] - running_max) / running_max
@@ -177,7 +229,9 @@ def compute_metrics(df, initial_cash):
         'Max Drawdown (%)': round(max_drawdown, 2),
         'Sharpe Ratio': round(sharpe_ratio, 2),
         'Number of Trades': num_trades,
-        'Win Rate (%)': round(win_rate, 2) if not np.isnan(win_rate) else 'N/A'
+        'Win Rate (%)': round(win_rate, 2) if not np.isnan(win_rate) else 'N/A',
+        #'Timeframe (seconds)': int(seconds_per_period),
+        #'Periods per year': round(periods_per_year, 2)
     }
 
 # Backtest with MTF confirmation
@@ -202,10 +256,10 @@ for symbol in symbols:
         q3 = df_1h['close'].quantile(0.75)
         iqr = q3 - q1
         outliers = df_1h[(df_1h['close'] < (q1 - 1.5 * iqr)) | (df_1h['close'] > (q3 + 1.5 * iqr))]
-        print(f"Number of outliers in 'close' prices for {symbol}: {len(outliers)}")
+        #print(f"Number of outliers in 'close' prices for {symbol}: {len(outliers)}")
 
         # Check data range
-        print(f"Data range from {df_1h['timestamp'].min()} to {df_1h['timestamp'].max()} for {symbol}")
+        #print(f"Data range from {df_1h['timestamp'].min()} to {df_1h['timestamp'].max()} for {symbol}")
 
         # Visual inspection of 'close' prices
         """
@@ -219,8 +273,9 @@ for symbol in symbols:
         """
 
         # Forward fill daily trend into 1H data
-        df_1h['timestamp'] = df_1h.index
-        df_4h['timestamp'] = df_4h.index
+        df_1h = df_1h.reset_index()  # Moves datetime index to a 'timestamp' column
+        df_4h = df_4h.reset_index()
+
         data_merged = pd.merge_asof(
             df_1h.sort_values('timestamp'),
             df_4h[['timestamp', 'rsi', 'macd', 'macd_signal', 'macd_hist']],
@@ -231,18 +286,18 @@ for symbol in symbols:
 
         # Trend filter: 200-day Moving Average
         #data_merged['trend'].fillna(method='ffill', inplace=True)
-        trend_filter = data_merged['close'] > data_merged['close'].rolling(window=200).mean()
+        trend_filter = data_merged['close'] > data_merged['close'].rolling(window=4800).mean()
 
         # Volume filter: Check if volume is higher than average (20-day)
-        data_merged['avg_volume'] = data_merged['volume'].rolling(window=20).mean()
+        data_merged['avg_volume'] = data_merged['volume'].rolling(window=480).mean()
         volume_filter = data_merged['volume'] > data_merged['avg_volume']
         
         # Add ROC (Rate of Change) as a trend strength filter
-        data_merged['roc'] = (data_merged['close'] - data_merged['close'].shift(10)) / data_merged['close'].shift(10) * 100  # 10-day ROC
+        data_merged['roc'] = (data_merged['close'] - data_merged['close'].shift(240)) / data_merged['close'].shift(240) * 100  # 10-day ROC
         
         # Print recent RSI and MACD values for debugging
-        print(f"Last 10 RSI and MACD values for {symbol}:")
-        print(df_1h[['timestamp', 'close', 'rsi', 'macd', 'macd_signal']].tail(10))
+        #print(f"Last 10 RSI and MACD values for {symbol}:")
+        #print(df_1h[['timestamp', 'close', 'rsi', 'macd', 'macd_signal']].tail(10))
 
         rsi_threshold = 30
 
@@ -256,8 +311,13 @@ for symbol in symbols:
 
         # Buy signal: 1H signal + 4H confirmation
         buy_signal = (
-            (recent_rsi_cross_1h & (recent_macd_cross_1h | macd_hist_rising_1h)) &
-            (recent_rsi_cross_4h & (recent_macd_cross_4h | macd_hist_rising_4h)) #&
+            # Follows very well the benchmark with better performance in ATOS
+            recent_rsi_cross_1h | (recent_macd_cross_1h | macd_hist_rising_1h)
+            & (recent_macd_cross_4h | macd_hist_rising_4h)
+            
+            #(recent_rsi_cross_1h & (recent_macd_cross_1h | macd_hist_rising_1h)) &
+            #(recent_rsi_cross_4h & (recent_macd_cross_4h | macd_hist_rising_4h)) #&
+            
             #(trend_filter) &
             #(volume_filter) &
             #(data_merged['roc'] > 0)
@@ -273,8 +333,13 @@ for symbol in symbols:
 
         # Sell signal: 1H signal + 4H confirmation
         sell_signal = (
-            (recent_rsi_drop_1h & (recent_macd_drop_1h & macd_hist_falling_1h)) &
-            (recent_rsi_drop_4h & (recent_macd_drop_4h & macd_hist_falling_4h)) #&
+            # Follows very well the benchmark with better performance in ATOS
+            recent_rsi_drop_1h & (recent_macd_drop_1h | macd_hist_falling_1h)
+            & (recent_macd_drop_4h | macd_hist_falling_4h)
+            
+            #(recent_rsi_drop_1h & (recent_macd_drop_1h & macd_hist_falling_1h)) &
+            #(recent_rsi_drop_4h & (recent_macd_drop_4h & macd_hist_falling_4h)) #&
+            
             #(trend_filter) &
             #(volume_filter)
         )  
@@ -290,7 +355,7 @@ for symbol in symbols:
         shares = 0
         position = 0
         portfolio_values = []
-
+        
         for i in range(len(data_merged)):
             price = data_merged['close'].iloc[i]
             if data_merged['buy_signal'].iloc[i] and position == 0:
@@ -306,7 +371,7 @@ for symbol in symbols:
                 position = 0
             total_value = cash + shares * price
             portfolio_values.append(total_value)
-
+                    
         data_merged['portfolio_value'] = portfolio_values
 
         # Benchmark: Buy & Hold
