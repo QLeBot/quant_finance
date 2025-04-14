@@ -17,4 +17,7 @@ __pycache__
 # ignore notes.md
 notes.md
 
+# ignore data folder
+external_data/
+
 

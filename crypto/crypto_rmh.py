@@ -8,19 +8,13 @@ import yfinance as yf
 
 from ta.momentum import RSIIndicator
 from ta.trend import MACD
-from dotenv import load_dotenv
 
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest
+from alpaca.data.historical import CryptoHistoricalDataClient
+from alpaca.data.requests import CryptoBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
-# Load environment variables
-load_dotenv()
-API_KEY = os.getenv('ALPACA_API_KEY')
-API_SECRET = os.getenv('ALPACA_SECRET_KEY')
-
 # Initialize Alpaca client
-stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
+crypto_client = CryptoHistoricalDataClient()
 
 """
 Observations:
@@ -38,11 +32,9 @@ Tickers:
 """
 
 # Parameters
-#symbols = ["NVDA", "SPY", "TSLA", "MC.PA", "ATO", "ATOS"]
-symbols = ["NVDA"]
-#symbols = ["NVDA", "ATOS"]
-#symbols = ["NVDA", "ATOS" , "ATO"]
-#symbols = ["SPY"]
+symbols = ["BTC/USD"]
+#symbols = ["BTC/USD", "ETH/USD"]
+#symbols = ["BTC/USD", "ETH/USD", "XRP/USD"]
 initial_cash = 10000
 
 start_date = datetime.datetime(2022, 1, 1)
@@ -50,44 +42,40 @@ start_date = datetime.datetime(2022, 1, 1)
 end_date = datetime.datetime.now() - datetime.timedelta(days=10)
 
 # Request 1-hour data for primary analysis and 4-hour data for confirmation
-request_params_1h = StockBarsRequest(
+request_params_1h = CryptoBarsRequest(
     symbol_or_symbols=symbols,
     timeframe=TimeFrame.Hour,
     start=start_date,
-    end=end_date,
-    adjustment="split"
+    end=end_date
 )
-all_data_1h = stock_client.get_stock_bars(request_params_1h).df
+all_data_1h = crypto_client.get_crypto_bars(request_params_1h).df
 all_data_1h = all_data_1h.reset_index()  # bring 'symbol' and 'timestamp' into columns
 
-request_params_4h = StockBarsRequest(
+request_params_4h = CryptoBarsRequest(
     symbol_or_symbols=symbols,
     timeframe=TimeFrame.Hour,
     start=start_date,
-    end=end_date,
-    adjustment="split"
+    end=end_date
 )
-all_data_4h = stock_client.get_stock_bars(request_params_4h).df
+all_data_4h = crypto_client.get_crypto_bars(request_params_4h).df
 all_data_4h = all_data_4h.reset_index()  # bring 'symbol' and 'timestamp' into columns
 
-request_params_day = StockBarsRequest(
+request_params_day = CryptoBarsRequest(
     symbol_or_symbols=symbols,
     timeframe=TimeFrame.Day,
     start=start_date,
-    end=end_date,
-    adjustment="split"
+    end=end_date
 )
-all_data_day = stock_client.get_stock_bars(request_params_day).df
+all_data_day = crypto_client.get_crypto_bars(request_params_day).df
 all_data_day = all_data_day.reset_index()  # bring 'symbol' and 'timestamp' into columns
 
-request_params_week = StockBarsRequest(
+request_params_week = CryptoBarsRequest(
     symbol_or_symbols=symbols,
     timeframe=TimeFrame.Week,
     start=start_date,
-    end=end_date,
-    adjustment="split"
+    end=end_date
 )
-all_data_week = stock_client.get_stock_bars(request_params_week).df
+all_data_week = crypto_client.get_crypto_bars(request_params_week).df
 all_data_week = all_data_week.reset_index()  # bring 'symbol' and 'timestamp' into columns
 
 
@@ -96,30 +84,6 @@ all_data_1h['timestamp'] = pd.to_datetime(all_data_1h['timestamp'])
 all_data_4h['timestamp'] = pd.to_datetime(all_data_4h['timestamp'])
 all_data_day['timestamp'] = pd.to_datetime(all_data_day['timestamp'])
 all_data_week['timestamp'] = pd.to_datetime(all_data_week['timestamp'])
-
-# Adjust prices and volumes for stock splits for each symbol in both dataframes
-"""
-for symbol, splits in stock_splits.items():
-    for split_date, split_ratio in splits.items():
-        # Convert split_date to timezone-aware (UTC)
-        split_date = pd.to_datetime(split_date).tz_localize('UTC')
-        
-        mask_1h = (all_data_1h['symbol'] == symbol) & (all_data_1h['timestamp'] < split_date)
-        all_data_1h.loc[mask_1h, 'close'] /= split_ratio
-        all_data_1h.loc[mask_1h, 'volume'] *= split_ratio
-
-        mask_4h = (all_data_4h['symbol'] == symbol) & (all_data_4h['timestamp'] < split_date)
-        all_data_4h.loc[mask_4h, 'close'] /= split_ratio
-        all_data_4h.loc[mask_4h, 'volume'] *= split_ratio
-
-        mask_day = (all_data_day['symbol'] == symbol) & (all_data_day['timestamp'] < split_date)
-        all_data_day.loc[mask_day, 'close'] /= split_ratio
-        all_data_day.loc[mask_day, 'volume'] *= split_ratio
-
-        mask_week = (all_data_week['symbol'] == symbol) & (all_data_week['timestamp'] < split_date)
-        all_data_week.loc[mask_week, 'close'] /= split_ratio
-        all_data_week.loc[mask_week, 'volume'] *= split_ratio
-"""
 
 def get_risk_free_rate_tnx():
     """
@@ -575,9 +539,6 @@ for symbol in symbols:
         plt.show()
         """
 
-        # Save trades to CSV
-        trades_df = pd.DataFrame(trade_log)
-        trades_df.to_csv(f"stock/csv/trades_{symbol}.csv", index=False)
     except Exception as e:
         print(f"❌ Error processing {symbol}: {e}")
 
@@ -585,4 +546,4 @@ for symbol in symbols:
 print("\n📊 Backtest Summary:")
 summary_df = pd.DataFrame(results).T
 print(summary_df)
-summary_df.to_csv("stock/csv/summary_rsi_macd_roc_hourly.csv")
+#summary_df.to_csv("stock/csv/summary_rsi_macd_roc_hourly.csv")
