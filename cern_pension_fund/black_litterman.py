@@ -1,81 +1,78 @@
-"""
-data from : https://data.mendeley.com/datasets/v43sbd5wpy/1
-
-Sheets :
-- Returns : contains a 360x11 matrix, where the rows represent 360 months and the columns represent 11 sectors so that each entry gives the return of the sector in the given month.
-- MarketCap : contains a 360x11 matrix, where the rows represent 360 months and the columns represent 11 sectors so that each entry gives the percentage market capitalization of the sector in the given month.
-"""
-
+import yfinance as yf
 import pandas as pd
 import numpy as np
+import cvxpy as cp
 import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.optimize import minimize
 
-# Load the data
-file = pd.read_excel('external_data/input_data_black_litterman_portfolio_construction.xlsx', sheet_name=[1, 2], header=None)
-print(file.keys())
-# transform returns dict into two dataframes
-returns_df = file[1]
-print(returns_df.head())
-market_cap_df = file[2]
-print(market_cap_df.head())
+# =============== Parameters ================
+tickers = [
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META',
+    'TSLA', 'NVDA', 'JPM', 'V', 'MA',
+    'UNH', 'HD', 'PG', 'DIS', 'NFLX',
+    'XOM', 'CVX', 'BA', 'KO', 'PFE'
+]
 
+start_date = "2022-01-01"
+end_date = "2024-01-01"
+delta = 0.5  # risk aversion
+tau = 0.05   # uncertainty in prior
+view_strength = 0.03  # expected return difference in views
+max_weight = 0.15  # 15% max per asset
+lambda_reg = 0.1
 
-# Calculate the market capitalization weights
-market_weights = market_cap_df.div(market_cap_df.sum(axis=1), axis=0)
+# =============== Download Data ===============
+data = yf.download(tickers, start=start_date, end=end_date)['Close']
+returns = data.pct_change().dropna()
 
-# Calculate the implied excess returns (Pi)
-# Assume risk-free rate is 0 for simplicity
-risk_free_rate = 0.02
-risk_aversion = 2.5  # A typical value for risk aversion
-implied_excess_returns = risk_aversion * returns_df.cov().dot(market_weights.mean())
+# =============== Covariance Matrix & Market Implied Returns ===============
+cov_matrix = returns.cov()
+market_weights = np.repeat(1/len(tickers), len(tickers))  # Equal weights
+pi = delta * cov_matrix @ market_weights
 
-# Define investor views
-# Example: View that the first sector will outperform the second by 2%
-P = np.array([[1, -1] + [0]*9])  # View matrix
-Q = np.array([0.02])  # View returns
+# =============== Define Views ===============
+# Example: AAPL will outperform TSLA by 3%, NVDA will outperform META by 3%
+P = np.array([
+    [1, 0, -1, 1, 1, -1, 0, 1, -2, 0, 0, 1, 1, -1, 2, 5, 0, -1, 7, 3],
+    [-1, 1, 1, 0, -1, 3, 1, 2, 2, -1, -1, 0, 0, 1, 1, 1, 0, 0, -1, 2]
+])
 
-# Uncertainty in the views
-omega = np.diag([0.0001])  # Small uncertainty
+Q = np.array([view_strength, view_strength])
 
-# Regularization term
-regularization = 1e-5
+# Omega: diagonal variance of the views (simplified here)
+omega = np.diag(np.dot(P, tau * cov_matrix.values @ P.T))
+omega = np.diag(omega)
 
-# Black-Litterman formula with regularization
-# Calculate the adjusted expected returns
-covariance_matrix = returns_df.cov()
-M_inverse = np.linalg.inv(covariance_matrix)
+# =============== Black-Litterman Posterior Returns ===============
+middle = np.linalg.inv(np.linalg.inv(tau * cov_matrix.values) + P.T @ np.linalg.inv(omega) @ P)
+posterior_mean = middle @ (np.linalg.inv(tau * cov_matrix.values) @ pi + P.T @ np.linalg.inv(omega) @ Q)
 
-# Add regularization to P_omega_Pt
-P_omega_Pt = np.linalg.inv(P.T @ np.linalg.inv(omega) @ P + np.eye(P.shape[1]) * regularization)
+# =============== Mean-Variance Optimization ===============
+n = len(tickers)
+w = cp.Variable(n)
+risk = cp.quad_form(w, cov_matrix.values)
+expected_return = posterior_mean @ w
 
-adjusted_returns = np.linalg.inv(M_inverse + P.T @ np.linalg.inv(omega) @ P) @ (M_inverse @ implied_excess_returns + P.T @ np.linalg.inv(omega) @ Q)
+# Objective: maximize return - risk_aversion * risk
+problem = cp.Problem(cp.Maximize(expected_return - delta * risk),
+                     [cp.sum(w) == 1, w >= 0, w <= max_weight])
 
-# Optimize the portfolio
-# For simplicity, use equal weights as a starting point
-initial_weights = np.array([1/11] * 11)
+problem.solve()
 
-# Define the objective function for optimization
-def objective(weights):
-    return -weights.dot(adjusted_returns) + risk_aversion * weights.T.dot(covariance_matrix).dot(weights)
+optimal_weights = w.value
 
-# Constraints: weights sum to 1
-constraints = ({'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1})
+# =============== Results ===============
+portfolio = pd.DataFrame({
+    'Ticker': tickers,
+    'Weight': optimal_weights
+})
 
-# Bounds: weights between 0 and 1
-bounds = tuple((0, 1) for _ in range(11))
+print("\nOptimal Black-Litterman Portfolio Weights:")
+print(portfolio.sort_values(by='Weight', ascending=False).reset_index(drop=True).round(4))
 
-# Optimize
-result = minimize(objective, initial_weights, bounds=bounds, constraints=constraints)
-
-# Optimal weights in percentage
-optimal_weights = result.x * 100
-
-for i, weight in enumerate(optimal_weights):
-    print(f"Sector {i+1}: {round(weight, 2)}%")
-
-
-
-
-
+# =============== Plotting ===============
+plt.figure(figsize=(10, 6))
+plt.bar(portfolio['Ticker'], portfolio['Weight'], color='skyblue')
+plt.xlabel('Ticker')
+plt.ylabel('Weight')
+plt.title('Optimal Black-Litterman Portfolio Weights')
+plt.show()

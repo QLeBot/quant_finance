@@ -3,7 +3,6 @@ pandas
 numpy
 matplotlib
 plotly
-scipy
 seaborn
 scikit-learn
 tensorflow
@@ -12,7 +11,7 @@ ta
 dotenv
 streamlit
 backtesting
-pytz
+cvxpy
 
 # api
 yfinance
