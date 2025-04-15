@@ -35,7 +35,7 @@ Tickers:
 """
 
 # Parameters
-symbols = ["NVDA", "SPY", "TSLA", "MC.PA", "ATO"]
+symbols = ["NVDA", "TSLA", "MC.PA", "ATO"]
 initial_cash = 10000
 start_date = datetime.datetime(2015, 1, 1)
 end_date = datetime.datetime(2024, 12, 31)
@@ -45,10 +45,21 @@ request_params = StockBarsRequest(
     symbol_or_symbols=symbols,
     timeframe=TimeFrame.Day,
     start=start_date,
-    end=end_date
+    end=end_date,
+    adjustment="split"
 )
 all_data = stock_client.get_stock_bars(request_params).df
 all_data = all_data.reset_index()  # bring 'symbol' and 'timestamp' into columns
+
+request_params_spy = StockBarsRequest(
+    symbol_or_symbols=["SPY"],
+    timeframe=TimeFrame.Day,
+    start=start_date,
+    end=end_date,
+    adjustment="split"
+)
+all_data_spy = stock_client.get_stock_bars(request_params_spy).df
+all_data_spy = all_data_spy.reset_index()  # bring 'symbol' and 'timestamp' into columns
 
 # Function to compute performance metrics
 def compute_metrics(df, initial_cash):
@@ -105,12 +116,19 @@ def short_bias_volatility_strategy(data):
     - Volatility Long Strategies: Use instruments like VIX ETFs or options to benefit from spikes in volatility.
     - Example: Long VIX when the S&P 500 drops below the 200-day moving average.
     """
-    short_signals = (data['rsi'] > 70) & (data['macd'] < 0) & (data['price'] < data['200dma'])
-    long_vix = (data['spy_price'] < data['spy_200dma'])
+    short_signals = (data['rsi'] > 70) & (data['macd'] < 0) & (data['close'] < data['ma200'])
+    long_vix = (data['spy_price'] < data['spy_ma200'])
+
+    # Initialize buy and sell signals
+    data['buy_signal'] = False
+    data['sell_signal'] = False
+
+    # Generate sell signals for shorting
+    data.loc[short_signals, 'sell_signal'] = True
 
     positions = pd.Series(0, index=data.index)
     positions[short_signals] = -1
-    if long_vix:
+    if long_vix.any():  # Use .any() to evaluate the Series
         positions['VIXY'] = 1  # or a volatility ETF
 
     return positions
@@ -133,6 +151,14 @@ def mean_reversion_strategy(data):
 
     # Define oversold condition
     oversold = (data['rsi'] < 30) & (data['macd_histogram'] > 0)
+    
+    # Initialize buy and sell signals
+    data['buy_signal'] = False
+    data['sell_signal'] = False
+
+    # Generate buy signals for oversold conditions
+    data.loc[oversold, 'buy_signal'] = True
+
     positions = pd.Series(0, index=data.index)
     positions[oversold] = 1  # go long oversold stocks
 
@@ -165,9 +191,16 @@ def short_momentum_strategy(data):
         - Rank stocks by 3-12 month returns, short the bottom decile.
         - Combine with filters like low short interest to avoid squeezes.
     """
-    momentum = data['price'].pct_change(252)  # 1-year momentum
+    momentum = data['close'].pct_change(252)  # 1-year momentum
     quantile = momentum.rank(pct=True)
     
+    # Initialize buy and sell signals
+    data['buy_signal'] = False
+    data['sell_signal'] = False
+
+    # Generate sell signals for shorting
+    data.loc[quantile < 0.1, 'sell_signal'] = True
+
     positions = pd.Series(0, index=data.index)
     positions[quantile < 0.1] = -1  # short worst 10%
     
@@ -180,9 +213,20 @@ def trend_following_strategy(data):
         - Go short when the price is below long-term moving average (e.g., 200-day).
         - This can apply to stocks, commodities, FX, and fixed income.
     """
-    long_term_ma = data['price'].rolling(window=200).mean()
-    signal = data['price'] > long_term_ma
+    #long_term_ma = data['price'].rolling(window=200).mean()
+    #signal = data['price'] > long_term_ma
+
+    long_term_ma = data['close'].rolling(window=200).mean()
+    signal = data['close'] > long_term_ma
     
+    # Initialize buy and sell signals
+    data['buy_signal'] = False
+    data['sell_signal'] = False
+
+    # Generate buy and sell signals
+    data.loc[signal & ~signal.shift(1, fill_value=False), 'buy_signal'] = True
+    data.loc[~signal & signal.shift(1, fill_value=True), 'sell_signal'] = True
+
     positions = pd.Series(0, index=data.index)
     positions[signal] = 1
     positions[~signal] = -1  # optional, could also just go flat
@@ -197,8 +241,21 @@ def cross_asset_rotation_strategy(data):
         - Gold, Treasury bonds
         - Use macro signals (e.g., inflation, yield curve) for allocation decisions.
     """
-    # Assume `data` is a DataFrame of ETFs or assets
-    returns = data.pct_change(63).mean()  # 3-month return
+    # Ensure the index is not a DatetimeArray for the division operation
+    data_numeric = data.select_dtypes(include=[np.number])
+    
+    # Check if data_numeric is empty
+    if data_numeric.empty:
+        print("Warning: No numeric data available for cross-asset rotation.")
+        return pd.Series(0, index=data.columns)
+
+    returns = data_numeric.pct_change(63).mean()  # 3-month return
+    
+    # Check if there are enough assets to select
+    if len(returns) < 3:
+        print("Warning: Not enough assets to perform rotation.")
+        return pd.Series(0, index=data.columns)
+
     top_assets = returns.nlargest(3).index
     
     weights = pd.Series(0, index=data.columns)
@@ -247,10 +304,35 @@ def apply_strategy(strategy_func, df):
     df['portfolio_value'] = portfolio_values
     return df
 
+def prepare_data(df, all_data_spy):
+    # Calculate necessary indicators
+    df['rsi'] = RSIIndicator(df['close'], window=14).rsi()
+    macd = MACD(df['close'])
+    df['macd'] = macd.macd()
+    df['macd_signal'] = macd.macd_signal()
+    df['macd_histogram'] = macd.macd_diff()
+    df['ma200'] = df['close'].rolling(window=200).mean()
+    df['avg_volume'] = df['volume'].rolling(window=20).mean()
+    df['roc'] = (df['close'] - df['close'].shift(10)) / df['close'].shift(10) * 100
+
+    df['spy_price'] = all_data_spy['close']
+    df['spy_ma200'] = all_data_spy['close'].rolling(window=200).mean()
+
+    # Check for NaN values and print a warning if any are found
+    if df.isnull().values.any():
+        print("Warning: NaN values found in data")
+        print(df.isnull().sum())
+
+    # Print the first few rows of the DataFrame for debugging
+    print("Data preview:")
+    print(df.head())
+
+    return df
+
 # Backtest with strategy selection
 
-selected_strategies = [short_bias_volatility_strategy, mean_reversion_strategy, pairs_trading_strategy, short_momentum_strategy, trend_following_strategy, cross_asset_rotation_strategy, tail_risk_hedging_strategy]
-
+selected_strategies = [short_bias_volatility_strategy]
+#pairs_trading_strategy, tail_risk_hedging_strategy, cross_asset_rotation_strategy, trend_following_strategy, short_momentum_strategy, mean_reversion_strategy
 results = {}
 
 for strategy in selected_strategies:
@@ -261,17 +343,14 @@ for strategy in selected_strategies:
             if df.empty:
                 print(f"⚠️ No data for {symbol}")
                 continue
+            
+            all_data_spy = all_data_spy[all_data_spy['symbol'] == "SPY"].copy()
+            if all_data_spy.empty:
+                print(f"⚠️ No data for SPY")
+                continue
 
-            # Trend filter: 200-day Moving Average
-            df['ma200'] = df['close'].rolling(window=200).mean()
-            trend_filter = df['close'] > df['ma200']
-
-            # Volume filter: Check if volume is higher than average (20-day)
-            df['avg_volume'] = df['volume'].rolling(window=20).mean()
-            volume_filter = df['volume'] > df['avg_volume']
-
-            # Add ROC (Rate of Change) as a trend strength filter
-            df['roc'] = (df['close'] - df['close'].shift(10)) / df['close'].shift(10) * 100  # 10-day ROC
+            # Prepare data
+            df = prepare_data(df, all_data_spy)
 
             # Apply the selected strategy
             df = apply_strategy(strategy, df)

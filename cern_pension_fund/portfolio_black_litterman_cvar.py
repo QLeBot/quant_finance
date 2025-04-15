@@ -5,8 +5,6 @@ from scipy.optimize import minimize
 
 """
 Experimenting with different asset classes and ETF proxies for a Black-Litterman optimization.
-
-Assets are from Yahoo Finance so they are 
 """
 
 # --- Fund Asset Classes and ETF Proxies ---
@@ -36,6 +34,18 @@ saa = {
     "cash": 0.10,
 }
 
+returns_2023 = {
+    "fixed_income": 0.0274,
+    "equity": 0.1182,
+    "real_estate": -0.1875,
+    "infrastructure": 0.0079,
+    "timber_farmland": 0.03,
+    "private_equity": -0.0185,
+    "hedge_funds": 0.0425,
+    "metals_commodities": 0.0141,
+    "cash": 0.04,
+}
+
 # --- Fetch historical data ---
 tickers = [ticker for sublist in asset_classes.values() for ticker in sublist]
 data = yf.download(tickers, start="2019-01-01", end="2024-01-01")['Close']
@@ -55,16 +65,31 @@ mean_returns = returns.mean()
 cov_matrix = returns.cov()
 
 # --- Step 1: Black-Litterman implied returns from SAA ---
-delta = 2.5  # risk aversion coefficient
+delta = 0.5  # risk aversion coefficient
 w_mkt = np.array([saa[k] for k in asset_classes])  # market cap proxy = SAA
 pi = delta * cov_matrix @ w_mkt  # implied returns
 
 # --- Step 2: View: Equity will outperform Fixed Income by 1% ---
-P = np.zeros((1, len(asset_classes)))
-P[0, list(asset_classes).index("equity")] = 1
-P[0, list(asset_classes).index("fixed_income")] = -1
-Q = np.array([0.01])
-omega = np.array([[0.0001]])
+# P is mapping a view to an asset
+P = np.identity(len(asset_classes))
+print(P)
+#print(P.shape)
+
+# Q is the view on each asset
+#Q = np.array([0.01])
+Q = np.array([returns_2023[asset] for asset in asset_classes]) # view derived from the actual 2023 returns
+print(Q)
+
+# omega is the confidence in each view
+#omega = np.diag(np.full(len(asset_classes), 0.05)) # 5% confidence in each view
+
+# loop over the asset classes and set the confidence to a random value
+lower_conf = 0.02
+upper_conf = 0.6
+omega = np.zeros((len(asset_classes), len(asset_classes)))
+for i in range(len(asset_classes)):
+    omega[i, i] = np.random.uniform(lower_conf, upper_conf)
+print(omega)
 
 # --- Step 3: Compute posterior returns (Black-Litterman formula) ---
 tau = 0.05

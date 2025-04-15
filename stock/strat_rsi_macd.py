@@ -181,4 +181,4 @@ for symbol in symbols:
 print("\n📊 Backtest Summary:")
 summary_df = pd.DataFrame(results).T
 print(summary_df)
-summary_df.to_csv("stock/csv/summary_rsi_macd.csv")
+#summary_df.to_csv("stock/csv/strat_rsi_macd.csv")

@@ -14,7 +14,7 @@ tickers = [
 
 start_date = "2022-01-01"
 end_date = "2024-01-01"
-delta = 0.5  # risk aversion
+delta = 2.5  # risk aversion
 tau = 0.05   # uncertainty in prior
 view_strength = 0.03  # expected return difference in views
 max_weight = 0.15  # 15% max per asset
