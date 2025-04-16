@@ -72,13 +72,13 @@ pi = delta * cov_matrix @ w_mkt  # implied returns
 # --- Step 2: View: Equity will outperform Fixed Income by 1% ---
 # P is mapping a view to an asset
 P = np.identity(len(asset_classes))
-print(P)
+#print(P)
 #print(P.shape)
 
 # Q is the view on each asset
 #Q = np.array([0.01])
 Q = np.array([returns_2023[asset] for asset in asset_classes]) # view derived from the actual 2023 returns
-print(Q)
+#print(Q)
 
 # omega is the confidence in each view
 #omega = np.diag(np.full(len(asset_classes), 0.05)) # 5% confidence in each view
@@ -89,7 +89,7 @@ upper_conf = 0.6
 omega = np.zeros((len(asset_classes), len(asset_classes)))
 for i in range(len(asset_classes)):
     omega[i, i] = np.random.uniform(lower_conf, upper_conf)
-print(omega)
+#print(omega)
 
 # --- Step 3: Compute posterior returns (Black-Litterman formula) ---
 tau = 0.05
@@ -102,7 +102,7 @@ posterior_returns = pi + adjustment
 def calculate_cvar(weights, alpha=0.05):
     portfolio_returns = returns @ weights
     if portfolio_returns.isna().any():  # Check if there are any NaNs
-        print("NaNs in portfolio returns!")
+        #print("NaNs in portfolio returns!")
         return np.nan
     var = np.percentile(portfolio_returns, 100 * alpha)
     cvar = portfolio_returns[portfolio_returns <= var].mean()
