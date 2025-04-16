@@ -68,7 +68,8 @@ request_params = StockBarsRequest(
     symbol_or_symbols=symbols,
     timeframe=TimeFrame.Day,
     start=start_date,
-    end=end_date
+    end=end_date,
+    adjustment='split'
 )
 
 all_data = stock_client.get_stock_bars(request_params).df
