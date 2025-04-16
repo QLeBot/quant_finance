@@ -261,11 +261,61 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
     """
     def next(self):
         idx = len(self.data) - 1
+        
+        """
+        # TO TEST
+        rsi_threshold = 30
 
+        # BUY SIDE
+        recent_rsi_cross_1h = (data_merged['rsi'] > rsi_threshold) & (data_merged['rsi'].shift(1) <= rsi_threshold)
+        recent_macd_cross_1h = (data_merged['macd'] > data_merged['macd_signal']) & (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))
+        macd_hist_rising_1h = (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))
+
+        recent_rsi_cross_4h = (data_merged['rsi_4h'] > rsi_threshold) & (data_merged['rsi_4h'].shift(1) <= rsi_threshold)
+        recent_macd_cross_4h = (data_merged['macd_4h'] > data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
+        macd_hist_rising_4h = (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
+
+        recent_rsi_cross_day = (data_merged['rsi_day'] > rsi_threshold) & (data_merged['rsi_day'].shift(1) <= rsi_threshold)
+        recent_macd_cross_day = (data_merged['macd_day'] > data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
+        macd_hist_rising_day = (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
+
+        recent_rsi_cross_week = (data_merged['rsi_week'] > rsi_threshold) & (data_merged['rsi_week'].shift(1) <= rsi_threshold)
+        recent_macd_cross_week = (data_merged['macd_week'] > data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
+        macd_hist_rising_week = (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
+
+        recent_rsi_cross_1h | (recent_macd_cross_1h | macd_hist_rising_1h)
+            & (recent_macd_cross_4h | macd_hist_rising_4h)
+            & (recent_macd_cross_day | macd_hist_rising_day)
+            & (recent_macd_cross_week | macd_hist_rising_week)
+
+        # SELL SIDE
+        recent_rsi_drop_1h = (data_merged['rsi'] < (100 - rsi_threshold)) & (data_merged['rsi'].shift(1) >= (100 - rsi_threshold))
+        recent_macd_drop_1h = (data_merged['macd'] < data_merged['macd_signal']) & (data_merged['macd_hist'] < data_merged['macd_hist'].shift(1))
+        macd_hist_falling_1h = (data_merged['macd_hist'] < data_merged['macd_hist'].shift(1))
+
+        recent_rsi_drop_4h = (data_merged['rsi_4h'] < (100 - rsi_threshold)) & (data_merged['rsi_4h'].shift(1) >= (100 - rsi_threshold))
+        recent_macd_drop_4h = (data_merged['macd_4h'] < data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
+        macd_hist_falling_4h = (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
+
+        recent_rsi_drop_day = (data_merged['rsi_day'] < (100 - rsi_threshold)) & (data_merged['rsi_day'].shift(1) >= (100 - rsi_threshold))
+        recent_macd_drop_day = (data_merged['macd_day'] < data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
+        macd_hist_falling_day = (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
+
+        recent_rsi_drop_week = (data_merged['rsi_week'] < (100 - rsi_threshold)) & (data_merged['rsi_week'].shift(1) >= (100 - rsi_threshold))
+        recent_macd_drop_week = (data_merged['macd_week'] < data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
+        macd_hist_falling_week = (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
+        
+        recent_rsi_drop_1h & (recent_macd_drop_1h | macd_hist_falling_1h)
+            & (recent_macd_drop_4h | macd_hist_falling_4h)
+            | (recent_macd_drop_day | macd_hist_falling_day)
+            | (recent_macd_drop_week | macd_hist_falling_week)
+
+        """
         # 1H timeframe (from primary data)
         rsi_1h, macd_1h, macd_signal_1h, macd_hist_1h = self.rsi[-1], self.macd[-1], self.macd_signal[-1], self.macd_hist[-1]
-        long_1h = (rsi_1h > self.rsi_threshold) and (macd_1h > macd_signal_1h)
-        short_1h = (rsi_1h < (100 - self.rsi_threshold)) and (macd_1h < macd_signal_1h)
+        test = rsi_1h <= self.rsi_threshold.shift(1)
+        long_1h = (rsi_1h > self.rsi_threshold) and (macd_1h > macd_signal_1h) and macd_hist_1h > macd_hist_1h.shift(1)
+        short_1h = (rsi_1h < (100 - self.rsi_threshold)) and (macd_1h < macd_signal_1h) and macd_hist_1h < macd_hist_1h.shift(1)
 
         # Higher timeframes
         long_4h, short_4h = self.signal_confirmation(self.data_4h.iloc[idx] if idx < len(self.data_4h) else None,
@@ -276,7 +326,7 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
                                                          'rsi_week', 'macd_week', 'macd_signal_week', 'macd_hist_week', self.rsi_threshold)
 
         # Consolidated signals
-        # Consistent curve that minimizes drawdowns but underperforms buy and hold
+        # v1 Consistent curve that minimizes drawdowns but underperforms buy and hold
         long_confirmed = long_1h and long_4h and long_day and long_week
         short_confirmed = short_1h and short_4h and short_day and short_week
 
