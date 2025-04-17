@@ -373,6 +373,11 @@ for symbol in symbols:
 
         rsi_threshold = 30
 
+        print(type(data_merged['rsi']))
+        print(type(data_merged['rsi_4h']))
+        print(type(data_merged['rsi_day']))
+        print(type(data_merged['rsi_week']))
+
         recent_rsi_cross_1h = (data_merged['rsi'] > rsi_threshold) & (data_merged['rsi'].shift(1) <= rsi_threshold)
         recent_macd_cross_1h = (data_merged['macd'] > data_merged['macd_signal']) & (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))
         macd_hist_rising_1h = (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))

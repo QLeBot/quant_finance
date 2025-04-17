@@ -120,10 +120,18 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
         close_series = pd.Series(self.data.Close, index=self.data.index)
         
         # Initialize indicators with pandas Series
-        self.rsi = self.I(lambda x: RSIIndicator(pd.Series(x), window=10).rsi(), close_series, name='rsi')
-        self.macd = self.I(lambda x: MACD(pd.Series(x)).macd(), close_series, name='macd')
-        self.macd_signal = self.I(lambda x: MACD(pd.Series(x)).macd_signal(), close_series, name='macd_signal')
-        self.macd_hist = self.I(lambda x: MACD(pd.Series(x)).macd_diff(), close_series, name='macd_hist')
+
+        # OLD VERSION
+        #self.rsi = self.I(lambda x: RSIIndicator(pd.Series(x), window=10).rsi(), close_series, name='rsi')
+        #self.macd = self.I(lambda x: MACD(pd.Series(x)).macd(), close_series, name='macd')
+        #self.macd_signal = self.I(lambda x: MACD(pd.Series(x)).macd_signal(), close_series, name='macd_signal')
+        #self.macd_hist = self.I(lambda x: MACD(pd.Series(x)).macd_diff(), close_series, name='macd_hist')
+        
+        # NEW VERSION
+        self.rsi = self.I(lambda x: RSIIndicator(pd.Series(x, index=self.data.index), window=10).rsi().values, self.data.Close, name='rsi')
+        self.macd = self.I(lambda x: MACD(pd.Series(x, index=self.data.index)).macd().values, self.data.Close, name='macd')
+        self.macd_signal = self.I(lambda x: MACD(pd.Series(x, index=self.data.index)).macd_signal().values, self.data.Close, name='macd_signal')
+        self.macd_hist = self.I(lambda x: MACD(pd.Series(x, index=self.data.index)).macd_diff().values, self.data.Close, name='macd_hist')
         
         # Prepare higher timeframe data with proper column names
         data_4h = all_data_4h[['timestamp', 'rsi', 'macd', 'macd_signal', 'macd_hist']].copy()
@@ -174,148 +182,14 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
         short_signal = (rsi < (100 - rsi_threshold)) and (macd < macd_signal)
 
         return long_signal, short_signal
-    """    
-    def next(self):
-        # Get current index
-        current_idx = len(self.data) - 1
-        
-        # Get current and previous RSI values
-        current_rsi = self.rsi[-1]
-        prev_rsi = self.rsi[-2] if len(self.rsi) > 1 else current_rsi
-        
-        # Get current and previous MACD values
-        current_macd = self.macd[-1]
-        current_macd_signal = self.macd_signal[-1]
-        current_macd_hist = self.macd_hist[-1]
-        prev_macd_hist = self.macd_hist[-2] if len(self.macd_hist) > 1 else current_macd_hist
-        
-        # Check RSI and MACD conditions for 1h timeframe
-        rsi_cross_1h = (current_rsi > self.rsi_threshold) and (prev_rsi <= self.rsi_threshold)
-        macd_cross_1h = (current_macd > current_macd_signal) and (current_macd_hist > prev_macd_hist)
-        macd_hist_rising_1h = (current_macd_hist > prev_macd_hist)
-
-        rsi_drop_1h = (current_rsi < (100 - self.rsi_threshold)) and (prev_rsi >= (100 - self.rsi_threshold))
-        macd_drop_1h = (current_macd < current_macd_signal) and (current_macd_hist < prev_macd_hist)
-        macd_hist_falling_1h = (current_macd_hist < prev_macd_hist)
-        
-        # Get current and previous values for higher timeframes
-        current_4h = self.data_4h.iloc[current_idx] if current_idx < len(self.data_4h) else None
-        prev_4h = self.data_4h.iloc[current_idx-1] if current_idx > 0 and current_idx < len(self.data_4h) else None
-        
-        current_day = self.data_day.iloc[current_idx] if current_idx < len(self.data_day) else None
-        prev_day = self.data_day.iloc[current_idx-1] if current_idx > 0 and current_idx < len(self.data_day) else None
-        
-        current_week = self.data_week.iloc[current_idx] if current_idx < len(self.data_week) else None
-        prev_week = self.data_week.iloc[current_idx-1] if current_idx > 0 and current_idx < len(self.data_week) else None
-        
-        # Check conditions for higher timeframes
-        rsi_cross_4h = (current_4h['rsi_4h'] > self.rsi_threshold) if current_4h is not None else False
-        macd_cross_4h = (current_4h['macd_4h'] > current_4h['macd_signal_4h']) if current_4h is not None else False
-        macd_hist_rising_4h = (current_4h['macd_hist_4h'] > prev_4h['macd_hist_4h']) if current_4h is not None and prev_4h is not None else False
-
-        rsi_drop_4h = (current_4h['rsi_4h'] < (100 - self.rsi_threshold)) if current_4h is not None else False
-        macd_drop_4h = (current_4h['macd_4h'] < current_4h['macd_signal_4h']) if current_4h is not None else False
-        macd_hist_falling_4h = (current_4h['macd_hist_4h'] < prev_4h['macd_hist_4h']) if current_4h is not None and prev_4h is not None else False
-        
-        rsi_cross_day = (current_day['rsi_day'] > self.rsi_threshold) if current_day is not None else False
-        macd_cross_day = (current_day['macd_day'] > current_day['macd_signal_day']) if current_day is not None else False
-        macd_hist_rising_day = (current_day['macd_hist_day'] > prev_day['macd_hist_day']) if current_day is not None and prev_day is not None else False
-
-        rsi_drop_day = (current_day['rsi_day'] < (100 - self.rsi_threshold)) if current_day is not None else False
-        macd_drop_day = (current_day['macd_day'] < current_day['macd_signal_day']) if current_day is not None else False
-        macd_hist_falling_day = (current_day['macd_hist_day'] < prev_day['macd_hist_day']) if current_day is not None and prev_day is not None else False
-        
-        rsi_cross_week = (current_week['rsi_week'] > self.rsi_threshold) if current_week is not None else False
-        macd_cross_week = (current_week['macd_week'] > current_week['macd_signal_week']) if current_week is not None else False
-        macd_hist_rising_week = (current_week['macd_hist_week'] > prev_week['macd_hist_week']) if current_week is not None and prev_week is not None else False
-
-        rsi_drop_week = (current_week['rsi_week'] < (100 - self.rsi_threshold)) if current_week is not None else False
-        macd_drop_week = (current_week['macd_week'] < current_week['macd_signal_week']) if current_week is not None else False
-        macd_hist_falling_week = (current_week['macd_hist_week'] < prev_week['macd_hist_week']) if current_week is not None and prev_week is not None else False
-        
-        # Buy / Sell signals
-        # V1 better than Buy&Hold if hedging and exclusive orders are set to default
-        #buy_signal = (rsi_cross_1h and macd_cross_1h) or (rsi_cross_4h and macd_cross_4h) or (rsi_cross_day and macd_cross_day) or (rsi_cross_week and macd_cross_week)
-        #sell_signal = ((rsi_drop_1h and macd_drop_1h) and (rsi_drop_4h and macd_drop_4h) and (rsi_drop_day and macd_drop_day) and (rsi_drop_week and macd_drop_week))
-
-        # V2 shit
-        #buy_signal = (rsi_cross_1h or macd_cross_1h) and (rsi_cross_4h or macd_cross_4h) and (rsi_cross_day or macd_cross_day) and (rsi_cross_week or macd_cross_week)
-        #sell_signal = ((rsi_drop_1h or macd_drop_1h) and (rsi_drop_4h or macd_drop_4h) and (rsi_drop_day or macd_drop_day) and (rsi_drop_week or macd_drop_week))
-
-        # V3 meh 1 trade basically follows buy and hold with hedging
-        #buy_signal = (rsi_cross_1h and macd_cross_1h) or (rsi_cross_4h and macd_cross_4h) or (rsi_cross_day and macd_cross_day) or (rsi_cross_week and macd_cross_week)
-        #sell_signal = ((rsi_drop_1h or macd_drop_1h) or (rsi_drop_4h or macd_drop_4h) and (rsi_drop_day and macd_drop_day) and (rsi_drop_week and macd_drop_week))
-
-        # V4 
-        buy_signal = (rsi_cross_1h and macd_cross_1h) or (rsi_cross_4h and macd_cross_4h) or (rsi_cross_day and macd_cross_day) or (rsi_cross_week and macd_cross_week)
-        sell_signal = ((rsi_drop_1h and macd_drop_1h) or (rsi_drop_4h and macd_drop_4h) and (rsi_drop_day and macd_drop_day))
-
-        # Buy signal: All timeframes confirm
-        if buy_signal:
-            if not self.position:
-                self.buy()
-        
-        # Sell signal: Any timeframe shows weakness
-        elif sell_signal:
-            self.sell()
-    """
+    
     def next(self):
         idx = len(self.data) - 1
         
-        """
-        # TO TEST
-        rsi_threshold = 30
-
-        # BUY SIDE
-        recent_rsi_cross_1h = (data_merged['rsi'] > rsi_threshold) & (data_merged['rsi'].shift(1) <= rsi_threshold)
-        recent_macd_cross_1h = (data_merged['macd'] > data_merged['macd_signal']) & (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))
-        macd_hist_rising_1h = (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))
-
-        recent_rsi_cross_4h = (data_merged['rsi_4h'] > rsi_threshold) & (data_merged['rsi_4h'].shift(1) <= rsi_threshold)
-        recent_macd_cross_4h = (data_merged['macd_4h'] > data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
-        macd_hist_rising_4h = (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
-
-        recent_rsi_cross_day = (data_merged['rsi_day'] > rsi_threshold) & (data_merged['rsi_day'].shift(1) <= rsi_threshold)
-        recent_macd_cross_day = (data_merged['macd_day'] > data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
-        macd_hist_rising_day = (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
-
-        recent_rsi_cross_week = (data_merged['rsi_week'] > rsi_threshold) & (data_merged['rsi_week'].shift(1) <= rsi_threshold)
-        recent_macd_cross_week = (data_merged['macd_week'] > data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
-        macd_hist_rising_week = (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
-
-        recent_rsi_cross_1h | (recent_macd_cross_1h | macd_hist_rising_1h)
-            & (recent_macd_cross_4h | macd_hist_rising_4h)
-            & (recent_macd_cross_day | macd_hist_rising_day)
-            & (recent_macd_cross_week | macd_hist_rising_week)
-
-        # SELL SIDE
-        recent_rsi_drop_1h = (data_merged['rsi'] < (100 - rsi_threshold)) & (data_merged['rsi'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_1h = (data_merged['macd'] < data_merged['macd_signal']) & (data_merged['macd_hist'] < data_merged['macd_hist'].shift(1))
-        macd_hist_falling_1h = (data_merged['macd_hist'] < data_merged['macd_hist'].shift(1))
-
-        recent_rsi_drop_4h = (data_merged['rsi_4h'] < (100 - rsi_threshold)) & (data_merged['rsi_4h'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_4h = (data_merged['macd_4h'] < data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
-        macd_hist_falling_4h = (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
-
-        recent_rsi_drop_day = (data_merged['rsi_day'] < (100 - rsi_threshold)) & (data_merged['rsi_day'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_day = (data_merged['macd_day'] < data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
-        macd_hist_falling_day = (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
-
-        recent_rsi_drop_week = (data_merged['rsi_week'] < (100 - rsi_threshold)) & (data_merged['rsi_week'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_week = (data_merged['macd_week'] < data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
-        macd_hist_falling_week = (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
-        
-        recent_rsi_drop_1h & (recent_macd_drop_1h | macd_hist_falling_1h)
-            & (recent_macd_drop_4h | macd_hist_falling_4h)
-            | (recent_macd_drop_day | macd_hist_falling_day)
-            | (recent_macd_drop_week | macd_hist_falling_week)
-
-        """
         # 1H timeframe (from primary data)
         rsi_1h, macd_1h, macd_signal_1h, macd_hist_1h = self.rsi[-1], self.macd[-1], self.macd_signal[-1], self.macd_hist[-1]
-        test = rsi_1h <= self.rsi_threshold.shift(1)
-        long_1h = (rsi_1h > self.rsi_threshold) and (macd_1h > macd_signal_1h) and macd_hist_1h > macd_hist_1h.shift(1)
-        short_1h = (rsi_1h < (100 - self.rsi_threshold)) and (macd_1h < macd_signal_1h) and macd_hist_1h < macd_hist_1h.shift(1)
+        long_1h = (rsi_1h > self.rsi_threshold) and (macd_1h > macd_signal_1h)
+        short_1h = (rsi_1h < (100 - self.rsi_threshold)) and (macd_1h < macd_signal_1h)
 
         # Higher timeframes
         long_4h, short_4h = self.signal_confirmation(self.data_4h.iloc[idx] if idx < len(self.data_4h) else None,
@@ -365,7 +239,7 @@ data_1h.rename(columns={
 data_1h.set_index('timestamp', inplace=True)
 
 # Run backtest
-bt = Backtest(data_1h, MultiTimeframeRSIMACDStrategy, cash=initial_cash, commission=.002, finalize_trades=True)
+bt = Backtest(data_1h, MultiTimeframeRSIMACDStrategy, cash=initial_cash, commission=.0035, finalize_trades=True)
 results = bt.run()
 print(results)
 
