@@ -97,30 +97,6 @@ all_data_4h['timestamp'] = pd.to_datetime(all_data_4h['timestamp'])
 all_data_day['timestamp'] = pd.to_datetime(all_data_day['timestamp'])
 all_data_week['timestamp'] = pd.to_datetime(all_data_week['timestamp'])
 
-# Adjust prices and volumes for stock splits for each symbol in both dataframes
-"""
-for symbol, splits in stock_splits.items():
-    for split_date, split_ratio in splits.items():
-        # Convert split_date to timezone-aware (UTC)
-        split_date = pd.to_datetime(split_date).tz_localize('UTC')
-        
-        mask_1h = (all_data_1h['symbol'] == symbol) & (all_data_1h['timestamp'] < split_date)
-        all_data_1h.loc[mask_1h, 'close'] /= split_ratio
-        all_data_1h.loc[mask_1h, 'volume'] *= split_ratio
-
-        mask_4h = (all_data_4h['symbol'] == symbol) & (all_data_4h['timestamp'] < split_date)
-        all_data_4h.loc[mask_4h, 'close'] /= split_ratio
-        all_data_4h.loc[mask_4h, 'volume'] *= split_ratio
-
-        mask_day = (all_data_day['symbol'] == symbol) & (all_data_day['timestamp'] < split_date)
-        all_data_day.loc[mask_day, 'close'] /= split_ratio
-        all_data_day.loc[mask_day, 'volume'] *= split_ratio
-
-        mask_week = (all_data_week['symbol'] == symbol) & (all_data_week['timestamp'] < split_date)
-        all_data_week.loc[mask_week, 'close'] /= split_ratio
-        all_data_week.loc[mask_week, 'volume'] *= split_ratio
-"""
-
 def get_risk_free_rate_tnx():
     """
     Fetches the latest U.S. 10-Year Treasury yield using yfinance.
@@ -136,20 +112,35 @@ def get_risk_free_rate_tnx():
     else:
         raise ValueError("No data found for ^TNX.")
 
-# Function to compute indicators for a given dataframe
-def compute_indicators(df):
-    df['ma200'] = df['close'].rolling(window=200).mean()
-    df['rsi'] = RSIIndicator(df['close'], window=10).rsi()
-    macd = MACD(df['close'])
-    df['macd'] = macd.macd()
-    df['macd_signal'] = macd.macd_signal()
-    df['macd_hist'] = macd.macd_diff()
+def compute_indicators_rolling(df):
+    """
+    Calculate indicators using only past data to avoid look-ahead bias.
+    Uses rolling windows to ensure we only use data up to the current point.
+    """
+    # Initialize empty columns
+    df['ma200'] = np.nan
+    df['rsi'] = np.nan
+    df['macd'] = np.nan
+    df['macd_signal'] = np.nan
+    df['macd_hist'] = np.nan
+    
+    # Calculate indicators using only past data
+    for i in range(200, len(df)):
+        # Use only data up to current point
+        window = df['close'].iloc[:i+1]
+        df.loc[df.index[i], 'ma200'] = window.rolling(window=200).mean().iloc[-1]
+        df.loc[df.index[i], 'rsi'] = RSIIndicator(window, window=10).rsi().iloc[-1]
+        macd = MACD(window)
+        df.loc[df.index[i], 'macd'] = macd.macd().iloc[-1]
+        df.loc[df.index[i], 'macd_signal'] = macd.macd_signal().iloc[-1]
+        df.loc[df.index[i], 'macd_hist'] = macd.macd_diff().iloc[-1]
+    
     return df
 
-all_data_1h = compute_indicators(all_data_1h)
-all_data_4h = compute_indicators(all_data_4h)
-all_data_day = compute_indicators(all_data_day)
-all_data_week = compute_indicators(all_data_week)
+all_data_1h = compute_indicators_rolling(all_data_1h)
+all_data_4h = compute_indicators_rolling(all_data_4h)
+all_data_day = compute_indicators_rolling(all_data_day)
+all_data_week = compute_indicators_rolling(all_data_week)
 
 macd_hist_1h = all_data_1h['macd_hist'].iloc[-1]
 macd_hist_4h = all_data_4h['macd_hist'].iloc[-1]
@@ -274,6 +265,50 @@ def compute_metrics(df, initial_cash):
         #'Periods per year': round(periods_per_year, 2)
     }
 
+def merge_timeframes_properly(df_1h, df_4h, df_day, df_week):
+    """
+    Merge different timeframe data properly to avoid look-ahead bias.
+    Only uses data up to the current point in time.
+    """
+    # Ensure all dataframes have timestamp as index
+    df_1h = df_1h.set_index('timestamp')
+    df_4h = df_4h.set_index('timestamp')
+    df_day = df_day.set_index('timestamp')
+    df_week = df_week.set_index('timestamp')
+    
+    # Initialize merged dataframe with 1h data
+    merged = df_1h.copy()
+    
+    # Add columns for higher timeframe data
+    for col in ['rsi', 'macd', 'macd_signal', 'macd_hist']:
+        merged[f'{col}_4h'] = np.nan
+        merged[f'{col}_day'] = np.nan
+        merged[f'{col}_week'] = np.nan
+    
+    # Fill in higher timeframe data using only past data
+    for i in range(len(merged)):
+        current_time = merged.index[i]
+        
+        # Get the most recent 4h data point before current_time
+        past_4h = df_4h[df_4h.index <= current_time].iloc[-1] if not df_4h[df_4h.index <= current_time].empty else None
+        if past_4h is not None:
+            for col in ['rsi', 'macd', 'macd_signal', 'macd_hist']:
+                merged.loc[current_time, f'{col}_4h'] = past_4h[col]
+        
+        # Get the most recent daily data point before current_time
+        past_day = df_day[df_day.index <= current_time].iloc[-1] if not df_day[df_day.index <= current_time].empty else None
+        if past_day is not None:
+            for col in ['rsi', 'macd', 'macd_signal', 'macd_hist']:
+                merged.loc[current_time, f'{col}_day'] = past_day[col]
+        
+        # Get the most recent weekly data point before current_time
+        past_week = df_week[df_week.index <= current_time].iloc[-1] if not df_week[df_week.index <= current_time].empty else None
+        if past_week is not None:
+            for col in ['rsi', 'macd', 'macd_signal', 'macd_hist']:
+                merged.loc[current_time, f'{col}_week'] = past_week[col]
+    
+    return merged
+
 # Backtest with MTF confirmation
 results = {}
 
@@ -290,15 +325,17 @@ for symbol in symbols:
             print(f"⚠️ No data for {symbol}")
             continue
 
-        # Check for missing values
-        missing_values = df_1h.isnull().sum()
-        print(f"Missing values in each column for {symbol}:")
-        print(missing_values)
-        # fill missing values with forward fill
-        df_1h = df_1h.ffill()
-        df_4h = df_4h.ffill()
-        df_day = df_day.ffill()
-        df_week = df_week.ffill()
+        # Handle missing values with backward fill
+        df_1h = df_1h.bfill()
+        df_4h = df_4h.bfill()
+        df_day = df_day.bfill()
+        df_week = df_week.bfill()
+
+        # If there are still missing values at the start, fill with the first valid value
+        df_1h = df_1h.fillna(method='bfill')
+        df_4h = df_4h.fillna(method='bfill')
+        df_day = df_day.fillna(method='bfill')
+        df_week = df_week.fillna(method='bfill')
 
         # Check for outliers in the 'close' prices
         # Using a simple statistical method to identify outliers
@@ -330,31 +367,11 @@ for symbol in symbols:
         df_day = df_day.reset_index()
         df_week = df_week.reset_index()
 
-        data_merged = pd.merge_asof(
-            df_1h.sort_values('timestamp'),
-            df_4h[['timestamp', 'rsi', 'macd', 'macd_signal', 'macd_hist']],
-            on='timestamp',
-            direction='backward',
-            suffixes=('', '_4h')
-        )
-        # =========== MAY NEED TO REMOVE THIS ============
-        # Adding daily data
-        data_merged = pd.merge_asof(
-            data_merged.sort_values('timestamp'),
-            df_day[['timestamp', 'rsi', 'macd', 'macd_signal', 'macd_hist']],
-            on='timestamp',
-            direction='backward',
-            suffixes=('', '_day')
-        )
-        # Adding weekly data
-        data_merged = pd.merge_asof(
-            data_merged.sort_values('timestamp'),
-            df_week[['timestamp', 'rsi', 'macd', 'macd_signal', 'macd_hist']],
-            on='timestamp',
-            direction='backward',
-            suffixes=('', '_week')
-        )
-        # ==================================================
+        # Use proper time-based merging
+        data_merged = merge_timeframes_properly(df_1h, df_4h, df_day, df_week)
+        
+        # Reset index to make timestamp a column again
+        data_merged = data_merged.reset_index()
 
         # Trend filter: 200-day Moving Average ; 200 day = 4800 hours
         #data_merged['trend'].fillna(method='ffill', inplace=True)
@@ -378,71 +395,71 @@ for symbol in symbols:
         print(type(data_merged['rsi_day']))
         print(type(data_merged['rsi_week']))
 
-        recent_rsi_cross_1h = (data_merged['rsi'] > rsi_threshold) & (data_merged['rsi'].shift(1) <= rsi_threshold)
-        recent_macd_cross_1h = (data_merged['macd'] > data_merged['macd_signal']) & (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))
-        macd_hist_rising_1h = (data_merged['macd_hist'] > data_merged['macd_hist'].shift(1))
-
-        recent_rsi_cross_4h = (data_merged['rsi_4h'] > rsi_threshold) & (data_merged['rsi_4h'].shift(1) <= rsi_threshold)
-        recent_macd_cross_4h = (data_merged['macd_4h'] > data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
-        macd_hist_rising_4h = (data_merged['macd_hist_4h'] > data_merged['macd_hist_4h'].shift(1))
-
-        recent_rsi_cross_day = (data_merged['rsi_day'] > rsi_threshold) & (data_merged['rsi_day'].shift(1) <= rsi_threshold)
-        recent_macd_cross_day = (data_merged['macd_day'] > data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
-        macd_hist_rising_day = (data_merged['macd_hist_day'] > data_merged['macd_hist_day'].shift(1))
-
-        recent_rsi_cross_week = (data_merged['rsi_week'] > rsi_threshold) & (data_merged['rsi_week'].shift(1) <= rsi_threshold)
-        recent_macd_cross_week = (data_merged['macd_week'] > data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
-        macd_hist_rising_week = (data_merged['macd_hist_week'] > data_merged['macd_hist_week'].shift(1))
-
-        # Buy signal: 1H signal + 4H confirmation
-        buy_signal = (
-            # Best setting yet for all symbols
-            recent_rsi_cross_1h | (recent_macd_cross_1h | macd_hist_rising_1h)
-            & (recent_macd_cross_4h | macd_hist_rising_4h)
-            & (recent_macd_cross_day | macd_hist_rising_day)
-            & (recent_macd_cross_week | macd_hist_rising_week)
+        # Generate signals using only past data
+        data_merged['buy_signal'] = False
+        data_merged['sell_signal'] = False
+        
+        for i in range(1, len(data_merged)):
+            # Get current and previous values
+            current = data_merged.iloc[i]
+            prev = data_merged.iloc[i-1]
             
-            #(recent_rsi_cross_1h & (recent_macd_cross_1h | macd_hist_rising_1h)) &
-            #(recent_rsi_cross_4h & (recent_macd_cross_4h | macd_hist_rising_4h)) #&
+            # 1H signals
+            rsi_cross_1h = (current['rsi'] > rsi_threshold) and (prev['rsi'] <= rsi_threshold)
+            macd_cross_1h = (current['macd'] > current['macd_signal']) and (current['macd_hist'] > prev['macd_hist'])
+            macd_hist_rising_1h = (current['macd_hist'] > prev['macd_hist'])
             
-            #(trend_filter) &
-            #(volume_filter) &
-            #(data_merged['roc'] > 0)
-        )
-
-        recent_rsi_drop_1h = (data_merged['rsi'] < (100 - rsi_threshold)) & (data_merged['rsi'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_1h = (data_merged['macd'] < data_merged['macd_signal']) & (data_merged['macd_hist'] < data_merged['macd_hist'].shift(1))
-        macd_hist_falling_1h = (data_merged['macd_hist'] < data_merged['macd_hist'].shift(1))
-
-        recent_rsi_drop_4h = (data_merged['rsi_4h'] < (100 - rsi_threshold)) & (data_merged['rsi_4h'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_4h = (data_merged['macd_4h'] < data_merged['macd_signal_4h']) & (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
-        macd_hist_falling_4h = (data_merged['macd_hist_4h'] < data_merged['macd_hist_4h'].shift(1))
-
-        recent_rsi_drop_day = (data_merged['rsi_day'] < (100 - rsi_threshold)) & (data_merged['rsi_day'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_day = (data_merged['macd_day'] < data_merged['macd_signal_day']) & (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
-        macd_hist_falling_day = (data_merged['macd_hist_day'] < data_merged['macd_hist_day'].shift(1))
-
-        recent_rsi_drop_week = (data_merged['rsi_week'] < (100 - rsi_threshold)) & (data_merged['rsi_week'].shift(1) >= (100 - rsi_threshold))
-        recent_macd_drop_week = (data_merged['macd_week'] < data_merged['macd_signal_week']) & (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
-        macd_hist_falling_week = (data_merged['macd_hist_week'] < data_merged['macd_hist_week'].shift(1))
-
-        # Sell signal: 1H signal + 4H confirmation
-        sell_signal = (
-            # Best setting yet for all symbols
-            recent_rsi_drop_1h & (recent_macd_drop_1h | macd_hist_falling_1h)
-            & (recent_macd_drop_4h | macd_hist_falling_4h)
-            | (recent_macd_drop_day | macd_hist_falling_day)
-            | (recent_macd_drop_week | macd_hist_falling_week)
+            # 4H signals
+            rsi_cross_4h = (current['rsi_4h'] > rsi_threshold) and (prev['rsi_4h'] <= rsi_threshold)
+            macd_cross_4h = (current['macd_4h'] > current['macd_signal_4h']) and (current['macd_hist_4h'] > prev['macd_hist_4h'])
+            macd_hist_rising_4h = (current['macd_hist_4h'] > prev['macd_hist_4h'])
             
-            #(recent_rsi_drop_1h & (recent_macd_drop_1h & macd_hist_falling_1h)) &
-            #(recent_rsi_drop_4h & (recent_macd_drop_4h & macd_hist_falling_4h)) #&
+            # Day signals
+            rsi_cross_day = (current['rsi_day'] > rsi_threshold) and (prev['rsi_day'] <= rsi_threshold)
+            macd_cross_day = (current['macd_day'] > current['macd_signal_day']) and (current['macd_hist_day'] > prev['macd_hist_day'])
+            macd_hist_rising_day = (current['macd_hist_day'] > prev['macd_hist_day'])
             
-            #(trend_filter) &
-            #(volume_filter)
-        )  
-
-        data_merged['buy_signal'] = buy_signal
-        data_merged['sell_signal'] = sell_signal
+            # Week signals
+            rsi_cross_week = (current['rsi_week'] > rsi_threshold) and (prev['rsi_week'] <= rsi_threshold)
+            macd_cross_week = (current['macd_week'] > current['macd_signal_week']) and (current['macd_hist_week'] > prev['macd_hist_week'])
+            macd_hist_rising_week = (current['macd_hist_week'] > prev['macd_hist_week'])
+            
+            # Buy signal: 1H signal + confirmation from higher timeframes
+            buy_signal = (
+                (rsi_cross_1h or (macd_cross_1h or macd_hist_rising_1h))
+                and (macd_cross_4h or macd_hist_rising_4h)
+                and (macd_cross_day or macd_hist_rising_day)
+                and (macd_cross_week or macd_hist_rising_week)
+            )
+            
+            # Sell signals
+            rsi_drop_1h = (current['rsi'] < (100 - rsi_threshold)) and (prev['rsi'] >= (100 - rsi_threshold))
+            macd_drop_1h = (current['macd'] < current['macd_signal']) and (current['macd_hist'] < prev['macd_hist'])
+            macd_hist_falling_1h = (current['macd_hist'] < prev['macd_hist'])
+            
+            rsi_drop_4h = (current['rsi_4h'] < (100 - rsi_threshold)) and (prev['rsi_4h'] >= (100 - rsi_threshold))
+            macd_drop_4h = (current['macd_4h'] < current['macd_signal_4h']) and (current['macd_hist_4h'] < prev['macd_hist_4h'])
+            macd_hist_falling_4h = (current['macd_hist_4h'] < prev['macd_hist_4h'])
+            
+            rsi_drop_day = (current['rsi_day'] < (100 - rsi_threshold)) and (prev['rsi_day'] >= (100 - rsi_threshold))
+            macd_drop_day = (current['macd_day'] < current['macd_signal_day']) and (current['macd_hist_day'] < prev['macd_hist_day'])
+            macd_hist_falling_day = (current['macd_hist_day'] < prev['macd_hist_day'])
+            
+            rsi_drop_week = (current['rsi_week'] < (100 - rsi_threshold)) and (prev['rsi_week'] >= (100 - rsi_threshold))
+            macd_drop_week = (current['macd_week'] < current['macd_signal_week']) and (current['macd_hist_week'] < prev['macd_hist_week'])
+            macd_hist_falling_week = (current['macd_hist_week'] < prev['macd_hist_week'])
+            
+            # Sell signal: 1H signal + confirmation from higher timeframes
+            sell_signal = (
+                (rsi_drop_1h and (macd_drop_1h or macd_hist_falling_1h))
+                and (macd_drop_4h or macd_hist_falling_4h)
+                and (macd_drop_day or macd_hist_falling_day)
+                and (macd_drop_week or macd_hist_falling_week)
+            )
+            
+            # Set signals
+            data_merged.loc[data_merged.index[i], 'buy_signal'] = buy_signal
+            data_merged.loc[data_merged.index[i], 'sell_signal'] = sell_signal
 
         # Strategy simulation with position sizing
         cash = initial_cash
