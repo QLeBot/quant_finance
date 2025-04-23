@@ -28,7 +28,7 @@ stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
 
 # Parameters
 symbol = "SPY"
-initial_cash = 10000
+initial_cash = 1000000
 start_date = datetime.datetime(2013, 1, 1)
 end_date = datetime.datetime(2024, 12, 31)
 
