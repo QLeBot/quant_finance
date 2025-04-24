@@ -22,7 +22,22 @@ Built an UI option pricer based on Black-Scholes model
 
 ---
 
-### 2. 🧪 RSI and MACD with Multi Timeframe Strategy – Backtesting
+### 2. 📊 Interactive Fund Dashboard
+Built a dashboard to visualize the state and simulating scenarios of the fund using Streamlit. The dashboard includes various metrics and visualizations to analyze the fund's cash flow, asset allocation, and simulation of scenarios for the fund's performance.
+
+#### Key Features:
+- Streamlit visualization dashboard
+- User input for Expected Returns, Volatility, Inflation and Simulation Years
+- Projections based on Investment Strategy (Aggressive, Conservative, Balanced) with different asset allocations
+
+📁 Project Files: `cern_pension_fund/fund_dashboard.py`
+
+#### Notes:
+- The dashboard, data and simulations are split into different files that all begin with `fund_`. The data are based on the CERN Pension Fund Annual Report and Financial Statements of 2023. 
+
+---
+
+### 3. 🧪 RSI and MACD with Multi Timeframe Strategy – Backtesting
 Test using RSI and MACD indicators on different stocks and implement a Multi Timeframe Confirmation strategy. Backtesting the strategy and the influence of different parameters using the backtesting python lib.
 
 #### Key Features:
@@ -40,7 +55,7 @@ Test using RSI and MACD indicators on different stocks and implement a Multi Tim
 
 ---
 
-### 3. 📊 Portfolio Optimization – Black-Litterman
+### 4. 📊 Portfolio Optimization – Black-Litterman
 Introduction to Black-Litterman model to generate optimal weights based on market views and confidence level.
 Used actual CERN Pension Fund Asset Allocation and returns from the Annual Report and Financial Statements of 2023.
 
