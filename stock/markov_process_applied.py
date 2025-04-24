@@ -7,35 +7,14 @@ import yfinance as yf
 
 from backtesting import Backtest, Strategy
 
-from dotenv import load_dotenv
-
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest
-from alpaca.data.timeframe import TimeFrame
-
-# Load environment variables
-load_dotenv()
-API_KEY = os.getenv('ALPACA_API_KEY')
-API_SECRET = os.getenv('ALPACA_SECRET_KEY')
-
-# Initialize Alpaca client
-stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
+# import get_data from get_data.py
+from get_data import alpaca_data
 
 # Parameters
 symbol = "SPY"
 initial_cash = 10000
 start_date = datetime.datetime(2017, 1, 1)
 end_date = datetime.datetime(2024, 12, 31)
-
-def get_data(symbol, timeframe):
-    request_params = StockBarsRequest(
-        symbol_or_symbols=symbol,
-        timeframe=timeframe,
-        start=start_date,
-        end=end_date,
-        adjustment="split"
-    )
-    return stock_client.get_stock_bars(request_params).df
 
 def determine_state(df):
     """Determine the state of the market based on the data."""
@@ -89,7 +68,7 @@ def prepare_data_for_backtesting(df):
 
 class MarkovProcess(Strategy):
     def init(self):
-        df = get_data(symbol, TimeFrame.Day)
+        df = alpaca_data(symbol, start_date, end_date, "day", "split")
         state_df = determine_state(df)
         self.transition_matrix = get_transition_matrix(state_df)
     
@@ -104,9 +83,16 @@ class MarkovProcess(Strategy):
             self.sell()
 
 # get data
-df = get_data(symbol, TimeFrame.Day)
+df = alpaca_data(symbol, start_date, end_date, "day", "split")
 # prepare data for backtesting
 prepared_df = prepare_data_for_backtesting(df)
+print(prepared_df)
+
+transition_matrix = get_transition_matrix(df)
+print(transition_matrix)
+
+# probability of up after 5 consecutive down days
+print(len(df[(df['state'] == 'up') & (df['state'].shift(-1) == 'down') & (df['state'].shift(-2) == 'down') & (df['state'].shift(-3) == 'down') & (df['state'].shift(-4) == 'down') & (df['state'].shift(-5) == 'down')]) / len(df[(df["state"].shift(1) == "down") & (df["state"].shift(2) == "down") & (df["state"].shift(3) == "down") & (df["state"].shift(4) == "down") & (df["state"].shift(5) == "down")]))
 
 # run backtest
 bt = Backtest(prepared_df, MarkovProcess, cash=initial_cash)
@@ -115,23 +101,3 @@ print(output)
 
 # plot the results
 bt.plot()
-
-# Main function for testing
-"""
-def main():
-    # Get data
-    df = get_data(symbol, TimeFrame.Day)
-    df = determine_state(df)
-    print(df)
-
-    transition_matrix = get_transition_matrix(df)
-    print(transition_matrix)
-
-    # probability of up after 5 consecutive down days
-    print(len(df[(df['state'] == 'up') & (df['state'].shift(-1) == 'down') & (df['state'].shift(-2) == 'down') & (df['state'].shift(-3) == 'down') & (df['state'].shift(-4) == 'down') & (df['state'].shift(-5) == 'down')]) / len(df[(df["state"].shift(1) == "down") & (df["state"].shift(2) == "down") & (df["state"].shift(3) == "down") & (df["state"].shift(4) == "down") & (df["state"].shift(5) == "down")]))
-
-
-if __name__ == "__main__":
-    main()
-
-"""

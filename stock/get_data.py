@@ -16,6 +16,18 @@ stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
 
 
 def alpaca_data(symbol, start_date, end_date, timeframe, adjustment):
+    if timeframe == "day":
+        timeframe = TimeFrame.Day
+    elif timeframe == "hour":
+        timeframe = TimeFrame.Hour
+    elif timeframe == "minute":
+        timeframe = TimeFrame.Minute
+    elif timeframe == "week":
+        timeframe = TimeFrame.Week
+    elif timeframe == "month":
+        timeframe = TimeFrame.Month
+    else:
+        raise ValueError(f"Invalid timeframe: {timeframe}")
     request_params = StockBarsRequest(
         symbol_or_symbols=symbol,
         timeframe=timeframe,
