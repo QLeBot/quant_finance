@@ -5,6 +5,7 @@ matplotlib
 plotly
 seaborn
 scikit-learn
+xgboost
 tensorflow
 keras
 ta
