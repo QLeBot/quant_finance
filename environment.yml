@@ -1,0 +1,25 @@
+name: quant_finance
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - numpy
+  - pandas
+  - scikit-learn
+  - xgboost
+  - tensorflow
+  - keras
+  - scipy
+  - matplotlib
+  - plotly
+  - seaborn
+  - streamlit
+  - yfinance
+  - alpaca-py
+  - pip
+  - pip:
+      - backtesting
+      - ta
+      - arch
+      - dotenv

@@ -70,9 +70,9 @@ Used actual CERN Pension Fund Asset Allocation and returns from the Annual Repor
 
 ## 📦 Dependencies
 
-All dependencies are listed in the `requirements.txt` file.
+All dependencies are listed in the `environment.yml` and `requirements.txt`files.
 
 To install:
 
 ```bash
-pip install -r requirements.txt
+conda env create -f environment.yml
