@@ -17,6 +17,11 @@ Built an UI option pricer based on Black-Scholes model
 
 📁 Project Files: `stock/black_scholes_interactive.py`
 
+Run the script and open the link in your browser:
+```bash
+streamlit run stock/black_scholes_interactive.py
+```
+
 #### Notes:
 - Created an alternate version with calculated parameters such as risk free rate based on treasury bonds yield, stock price, volatility. It can be found in `black_scholes_auto_interactive.py`
 
@@ -31,6 +36,11 @@ Built a dashboard to visualize the state and simulating scenarios of the fund us
 - Projections based on Investment Strategy (Aggressive, Conservative, Balanced) with different asset allocations
 
 📁 Project Files: `cern_pension_fund/fund_dashboard.py`
+
+Run the script and open the link in your browser:
+```bash
+streamlit run cern_pension_fund/fund_dashboard.py
+```
 
 #### Notes:
 - The dashboard, data and simulations are split into different files that all begin with `fund_`. The data are based on the CERN Pension Fund Annual Report and Financial Statements of 2023. 
