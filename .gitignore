@@ -23,4 +23,9 @@ external_data/
 # ignore .html related to backtesting
 *.html
 
+# yahoo_fin lib files
+yahoo_fin_master/
+
+**/.DS_Store
+
 
