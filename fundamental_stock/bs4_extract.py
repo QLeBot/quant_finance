@@ -3,15 +3,40 @@ import json
 import pandas as pd
 import re
 from datetime import datetime
+import requests
+# get website
+url = "https://finance.yahoo.com/quote/AAPL/balance-sheet/"
+
+# fetch with bs4
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'html.parser')
+print(f"soup : {soup}")
+
 # Load the HTML content
-with open("fundamental_stock/html_test.txt", "r", encoding="utf-8") as file:
-    html = file.read()
+#with open("fundamental_stock/html_test.txt", "r", encoding="utf-8") as file:
+#    html = file.read()
 
 # Parse HTML
-soup = BeautifulSoup(html, 'html.parser')
+#soup = BeautifulSoup(html, 'html.parser')
 
 # Find the "Breakdown" div
 table_div = soup.find("div", class_="table yf-9ft13")
+
+button_quarterly = soup.find("button", class_="tabBtn l1 yf-gfq5ju", id_="tab-quarterly")
+#button_quarter.click()
+if button_quarterly:
+    content_quarterly = button_quarterly.get_text()
+    print(f"content_quarterly : {content_quarterly}")
+else:
+    print("Quarterly button not found.")
+
+button_annual = soup.find("button", class_="tabBtn l1 yf-gfq5ju", id_="tab-annual")
+#button_annual.click()
+if button_annual:
+    content_annual = button_annual.get_text()
+    print(f"content_annual : {content_annual}")
+else:
+    print("Annual button not found.")
 
 # Get the parent or next sibling, depending on structure
 if table_div:

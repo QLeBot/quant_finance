@@ -17,6 +17,7 @@ dependencies:
   - streamlit
   - yfinance
   - alpaca-py
+  - bs4
   - pip
   - pip:
       - backtesting
@@ -24,3 +25,4 @@ dependencies:
       - arch
       - dotenv
       - polygon-api-client
+      - pandas_datareader
