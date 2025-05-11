@@ -19,6 +19,7 @@ notes.md
 
 # ignore data folder
 external_data/
+scraper_csv/
 
 # ignore .html related to backtesting
 *.html
@@ -27,5 +28,7 @@ external_data/
 yahoo_fin_master/
 
 **/.DS_Store
+
+linkedin.py
 
 

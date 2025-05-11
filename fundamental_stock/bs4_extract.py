@@ -1,14 +1,16 @@
 from bs4 import BeautifulSoup
+
 import json
 import pandas as pd
 import re
 from datetime import datetime
 import requests
+
 # get website
 url = "https://finance.yahoo.com/quote/AAPL/balance-sheet/"
 
 # fetch with bs4
-response = requests.get(url)
+response = requests.get(url, headers=headers)
 soup = BeautifulSoup(response.text, 'html.parser')
 print(f"soup : {soup}")
 

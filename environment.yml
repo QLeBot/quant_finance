@@ -18,6 +18,7 @@ dependencies:
   - yfinance
   - alpaca-py
   - bs4
+  - selenium
   - pip
   - pip:
       - backtesting
@@ -26,3 +27,4 @@ dependencies:
       - dotenv
       - polygon-api-client
       - pandas_datareader
+      - webdriver-manager
