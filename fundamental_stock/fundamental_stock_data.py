@@ -1,37 +1,29 @@
-#import yahoo_fin.stock_info as si
-#import yahoo_fin.options as op
-
-# import from local folder for debugging
-import yahoo_fin_master.yahoo_fin.stock_info as si
-
+import yfinance as yf
+import os
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import streamlit as st
-import requests_html
-from datetime import datetime
-import feedparser
-import ftplib
-import io
-import json
-import requests
 
-#st.title("Fundamental Stock Data")
+from dotenv import load_dotenv
 
-ticker = 'aapl'
+from alpaca.trading.client import TradingClient
+from alpaca.data.historical import StockHistoricalDataClient
+from alpaca.data.requests import StockBarsRequest
+from alpaca.data.timeframe import TimeFrame
 
-# get balance sheets, cash flow statements, and income statements in a single call
-#financials = si.get_financials(ticker, yearly = False, quarterly = True)
-# or
-balance_sheet = si.get_balance_sheet(ticker, yearly = False)
-#income_statement = si.get_income_statement(ticker, yearly = False)
-#cash_flow = si.get_cash_flow(ticker, yearly = False)
+# Load environment variables
+load_dotenv()
+API_KEY = os.getenv('ALPACA_API_KEY')
+API_SECRET = os.getenv('ALPACA_SECRET_KEY')
 
-# get earnings data
-#earnings = si.get_earnings(ticker)
+# Initialize Alpaca client
+trading_client = TradingClient(api_key=API_KEY, secret_key=API_SECRET, paper=False)
 
-print(balance_sheet)
+active_assets = trading_client.get_all_assets(raw_data=False, filter=GetAssetsRequest(status='active'))
 
+print(active_assets)
 
+AAPL = yf.Ticker('AAPL')
+AAPL.history(period='5y', interval='1d')
 
-
+#print(AAPL.financials)
+#print(AAPL.balance_sheet)
+#print(AAPL.cashflow)

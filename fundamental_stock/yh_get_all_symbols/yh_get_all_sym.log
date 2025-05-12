@@ -1,0 +1,8 @@
+2025-05-12 14:56:42,084 - DEBUG - Starting new HTTPS connection (1): finance.yahoo.com:443
+2025-05-12 14:56:42,300 - DEBUG - https://finance.yahoo.com:443 "GET /lookup/equity?s=AA&t=A&b=0&c=25 HTTP/1.1" 307 0
+2025-05-12 14:56:42,302 - DEBUG - Starting new HTTPS connection (1): guce.yahoo.com:443
+2025-05-12 14:56:42,801 - DEBUG - https://guce.yahoo.com:443 "GET /consent?brandType=nonEu&gcrumb=TBB1Q-8&done=https%3A%2F%2Ffinance.yahoo.com%2Flookup%2Fequity%3Fs%3DAA%26t%3DA%26b%3D0%26c%3D25 HTTP/1.1" 302 0
+2025-05-12 14:56:42,803 - DEBUG - Starting new HTTPS connection (1): consent.yahoo.com:443
+2025-05-12 14:56:43,355 - DEBUG - https://consent.yahoo.com:443 "GET /v2/collectConsent?sessionId=3_cc-session_8bfe007f-cac8-407e-9560-ecd293607bf5 HTTP/1.1" 200 14552
+2025-05-12 14:56:43,374 - INFO - Counts: AA PE html>
+<h
