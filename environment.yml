@@ -28,3 +28,5 @@ dependencies:
       - polygon-api-client
       - pandas_datareader
       - webdriver-manager
+      - SQLite3-0611
+      - apache-airflow

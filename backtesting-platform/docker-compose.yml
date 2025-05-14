@@ -1,4 +1,19 @@
-version: '3'
+version: '3.8'
+
+x-airflow-common:
+  &airflow-common
+  image: apache/airflow:3.0.1
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__WEBSERVER__SECRET_KEY: your_secret_key
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+  depends_on:
+    - postgres
 
 services:
   postgres:
@@ -10,32 +25,43 @@ services:
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
 
-  airflow-webserver:
-    image: apache/airflow:2.7.3
-    restart: always
+  streamlit:
+    build:
+      context: ./dashboard
+    volumes:
+      - ./data:/app/data  # share the SQLite DB
+    ports:
+      - "8501:8501"
+    working_dir: /app
+    command: streamlit run app.py
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow db create-user \
+          --username admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com \
+          --password admin
     depends_on:
       - postgres
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__CORE__FERNET_KEY: ''
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    volumes:
-      - ./dags:/opt/airflow/dags
+
+  airflow-webserver:
+    <<: *airflow-common
     ports:
       - "8080:8080"
-    command: webserver
+    command: airflow api-server
+    depends_on:
+      - airflow-init
 
   airflow-scheduler:
-    image: apache/airflow:2.7.3
-    restart: always
-    depends_on:
-      - airflow-webserver
-      - postgres
-    volumes:
-      - ./dags:/opt/airflow/dags
+    <<: *airflow-common
     command: scheduler
-
 volumes:
   postgres-db-volume:

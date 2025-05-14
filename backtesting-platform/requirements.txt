@@ -1,6 +1,0 @@
-yfinance
-ta
-pandas
-streamlit
-sqlite3
-apache-airflow
