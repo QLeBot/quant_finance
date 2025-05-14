@@ -20,6 +20,7 @@ notes.md
 # ignore data folder
 external_data/
 scraper_csv/
+fundamental_stock/small_caps_data/
 
 # ignore .html related to backtesting
 *.html
