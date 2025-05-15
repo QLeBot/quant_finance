@@ -4,34 +4,28 @@
 
 # Ignore pycache
 __pycache__
-
+**/.DS_Store
 # Ignore all .pyc files
 *.pyc
+# ignore .html related to backtesting
+*.html
 
 # Ignore csv files
 *.csv
-
 # Ignore pdf files
 *.pdf
-
-# ignore notes.md
-notes.md
+# ignore notes.md files in all subfolders
+*/notes.md
 
 # ignore data folder
 external_data/
 scraper_csv/
 fundamental_stock/small_caps_data/
-
-# ignore .html related to backtesting
-*.html
+stock_analyzer/data/
 
 # yahoo_fin lib files
 yahoo_fin_master/
 
-**/.DS_Store
-
 linkedin.py
-
-notes.md
 
 

@@ -30,3 +30,4 @@ dependencies:
       - webdriver-manager
       - SQLite3-0611
       - apache-airflow
+      - kafka-python
