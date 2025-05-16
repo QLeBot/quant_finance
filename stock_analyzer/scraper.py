@@ -36,131 +36,129 @@ actions = ActionChains(driver)
 
 # default US when loading the page
 regions = [
-    #{"code": "us",
-    #"name": "United States"
-    #},
-    #{"code": "fr",
-    #"name": "France"
-    #},
-    #{"code": "ar",
-    #"name": "Argentina"
-    #},
-    #{"code": "at",
-    #"name": "Austria"
-    #},
-    #{"code": "au",
-    #"name": "Australia"
-    #},
-    # problem with Belgium
+    {"code": "us",
+    "name": "United States"
+    },
+    {"code": "fr",
+    "name": "France"
+    },
+    {"code": "ar",
+    "name": "Argentina"
+    },
+    {"code": "at",
+    "name": "Austria"
+    },
+    {"code": "au",
+    "name": "Australia"
+    },
     {"code": "be",
     "name": "Belgium"
     },
-    #{"code": "br",
-    #"name": "Brazil"
-    #},
-    # problem with Belgium
-    #{"code": "ca",
-    #"name": "Canada"
-    #},
-    #{"code": "ch",
-    #"name": "Switzerland"
-    #},
-    #{"code": "cl",
-    #"name": "Chile"
-    #},
-    #{"code": "cn",
-    #"name": "China"
-    #},
-    #{"code": "cz",
-    #"name": "Czechia"
-    #},
-    #{"code": "de",
-    #"name": "Germany"
-    #},
-    #{"code": "dk",
-    #"name": "Denmark"
-    #},
-    #{"code": "ee",
-    #"name": "Estonia"
-    #},
-    #{"code": "gb",
-    #"name": "United Kingdom"
-    #},
-    #{"code": "gr",
-    #"name": "Greece"
-    #},
-    #{"code": "hk",
-    #"name": "Hong Kong SAR China"
-    #},
-    #{"code": "hu",
-    #"name": "Hungary"
-    #},
-    #{"code": "id",
-    #"name": "Indonesia"
-    #},
-    #{"code": "is",
-    #"name": "Iceland"
-    #},
-    #{"code": "it",
-    #"name": "Italy"
-    #},
-    #{"code": "jp",
-    #"name": "Japan"
-    #},
-    #{"code": "kr",
-    #"name": "South Korea"
-    #},
-    #{"code": "kw",
-    #"name": "Kuwait"
-    #},
-    #{"code": "lk",
-    #"name": "Sri Lanka"
-    #},
-    #{"code": "lt",
-    #"name": "Lithuania"
-    #},
-    #{"code": "lv",
-    #"name": "Latvia"
-    #},
-    #{"code": "mx",
-    #"name": "Mexico"
-    #},
-    #{"code": "my",
-    #"name": "Malaysia"
-    #},
-    #{"code": "nl",
-    #"name": "Netherlands"
-    #},
-    #{"code": "ph",
-    #"name": "Philippines"
-    #},
-    #{"code": "pk",
-    #"name": "Pakistan"
-    #},
-    #{"code": "pl",
-    #"name": "Poland"
-    #},
-    #{"code": "pt",
-    #"name": "Portugal"
-    #},
-    #{"code": "za",
-    #"name": "South Africa"
-    #},
-    #{"code": "sr",
-    #"name": "Suriname"
-    #},
-    #{"code": "th",
-    #"name": "Thailand"
-    #},
-    #{"code": "tr",
-    #"name": "Turkey"
-    #},
-    #{"code": "tw",
-    #"name": "Taiwan"
-    #},
-    #{"code": "ve",
-    #"name": "Venezuela"
-    #}
+    {"code": "br",
+    "name": "Brazil"
+    },
+    {"code": "ca",
+    "name": "Canada"
+    },
+    {"code": "ch",
+    "name": "Switzerland"
+    },
+    {"code": "cl",
+    "name": "Chile"
+    },
+    {"code": "cn",
+    "name": "China"
+    },
+    {"code": "cz",
+    "name": "Czechia"
+    },
+    {"code": "de",
+    "name": "Germany"
+    },
+    {"code": "dk",
+    "name": "Denmark"
+    },
+    {"code": "ee",
+    "name": "Estonia"
+    },
+    {"code": "gb",
+    "name": "United Kingdom"
+    },
+    {"code": "gr",
+    "name": "Greece"
+    },
+    {"code": "hk",
+    "name": "Hong Kong SAR China"
+    },
+    {"code": "hu",
+    "name": "Hungary"
+    },
+    {"code": "id",
+    "name": "Indonesia"
+    },
+    {"code": "is",
+    "name": "Iceland"
+    },
+    {"code": "it",
+    "name": "Italy"
+    },
+    {"code": "jp",
+    "name": "Japan"
+    },
+    {"code": "kr",
+    "name": "South Korea"
+    },
+    {"code": "kw",
+    "name": "Kuwait"
+    },
+    {"code": "lk",
+    "name": "Sri Lanka"
+    },
+    {"code": "lt",
+    "name": "Lithuania"
+    },
+    {"code": "lv",
+    "name": "Latvia"
+    },
+    {"code": "mx",
+    "name": "Mexico"
+    },
+    {"code": "my",
+    "name": "Malaysia"
+    },
+    {"code": "nl",
+    "name": "Netherlands"
+    },
+    {"code": "ph",
+    "name": "Philippines"
+    },
+    {"code": "pk",
+    "name": "Pakistan"
+    },
+    {"code": "pl",
+    "name": "Poland"
+    },
+    {"code": "pt",
+    "name": "Portugal"
+    },
+    {"code": "za",
+    "name": "South Africa"
+    },
+    {"code": "sr",
+    "name": "Suriname"
+    },
+    {"code": "th",
+    "name": "Thailand"
+    },
+    {"code": "tr",
+    "name": "Turkey"
+    },
+    {"code": "tw",
+    "name": "Taiwan"
+    },
+    {"code": "ve",
+    "name": "Venezuela"
+    }
 ]
 
 # get all region codes as a list
