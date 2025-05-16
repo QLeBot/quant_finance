@@ -141,6 +141,11 @@ regions = [
     }
 ]
 
+# HAVE TO SEPARATE CREATION OF TABLES FROM INSERTION OF DATA
+
+# Drop the stock_data table for testing purposes
+cursor.execute("DROP TABLE IF EXISTS stock_data")
+
 # Create a table for stock data
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS stock_data (
