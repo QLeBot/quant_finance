@@ -31,3 +31,4 @@ dependencies:
       - SQLite3-0611
       - apache-airflow
       - kafka-python
+      - psycopg2-binary
