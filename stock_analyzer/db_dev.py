@@ -2,12 +2,12 @@ import psycopg2
 from dotenv import load_dotenv
 import os
 import pandas as pd
-import yfinance as yf
+
 load_dotenv()
 
 conn = psycopg2.connect(
     host="localhost",
-    dbname=os.getenv("DB_NAME"),
+    dbname=os.getenv("DB_DEV_NAME"),
     user=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD")
 )
@@ -141,60 +141,34 @@ regions = [
     }
 ]
 
+# Create a table for country data
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS country (
+        country_id SERIAL PRIMARY KEY,
+        country_code VARCHAR(2) NOT NULL,
+        country_name VARCHAR(255)
+    );
+""")
+
+# insert country data into the database
+args_str = ','.join(cursor.mogrify("(%s,%s)", (x['code'], x['name'])).decode('utf-8') for x in regions)
+cursor.execute("INSERT INTO country (country_code, country_name) VALUES " + (args_str))
+
+# Drop the stock_data table for testing purposes
+cursor.execute("DROP TABLE IF EXISTS stock")
+
+# Create a table for stock data
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS stock (
+        stock_id SERIAL PRIMARY KEY,
+        stock_symbol VARCHAR(20) NOT NULL,
+        stock_name VARCHAR(255),
+        country_id INT,
+        stock_sector VARCHAR(255),
+        stock_industry VARCHAR(255),
+        FOREIGN KEY (country_id) REFERENCES country(country_id)
+    );
+""")
 
 
-def stock_found(ticker):
-    """Check if the stock is found from API"""
-    ticker = yf.Ticker(ticker)
-    return f"{ticker} is not found" if ticker.info is None else f"{ticker} is found"
 
-def get_info(ticker):
-    ticker = yf.Ticker(ticker)
-    return ticker.info['industry'], ticker.info['sector']
-
-def get_financial_data(ticker):
-    # get financial data from the database
-    ticker = yf.Ticker(ticker)
-    # get the balance sheet
-    balance_sheet = ticker.balance_sheet
-    # get the income statement
-    income_statement = ticker.financials
-    # get the cash flow statement
-    cash_flow = ticker.cash_flow
-    return balance_sheet, income_statement, cash_flow
-
-
-# Read all txt files from the data folder in the raw folder
-# Loop through all files in the raw folder and read and insert data into the database
-# If file is empty, skip it
-for file in os.listdir("stock_analyzer/data/raw"):
-    if file.endswith(".txt"):
-        with open("stock_analyzer/data/raw/" + file, "r") as file:
-            if not file.read():
-                continue
-            file.seek(0)
-            # get country from the file name
-            country = file.name.split("_")[-1].split(".")[0]
-            # get stock data from the file each line is a stock with symbol to split
-            stock_data = [line.split("/")[-2] for line in file.readlines()]
-
-            temp = stock_data[0]
-            print(temp)
-            print(get_info(temp))
-            #for symbol in stock_data:
-            #    print(stock_found(symbol))
-
-            # create a list of tuples with all the data
-            #stock_data = [(symbol, None, country, None, None) for symbol in stock_data]
-            #print(stock_data)
-
-            # insert data into the database
-            #args_str = ','.join(cursor.mogrify("(%s,%s,%s,%s,%s)", x).decode('utf-8') for x in stock_data)
-            #cursor.execute("INSERT INTO stock_data (symbol, name, country, sector, industry) VALUES " + (args_str))
-
-conn.commit()
-
-file.close()
-
-cursor.close()
-conn.close()
