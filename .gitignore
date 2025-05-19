@@ -1,31 +1,47 @@
-# Ignore all .env files
-.env*
-.env.local
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Ignore pycache
-__pycache__
-**/.DS_Store
-# Ignore all .pyc files
-*.pyc
-# ignore .html related to backtesting
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Project specific
 *.html
-
-# Ignore csv files
 *.csv
-# Ignore pdf files
 *.pdf
-# ignore notes.md files in all subfolders
 */notes.md
-
-# ignore data folder
 external_data/
 scraper_csv/
 fundamental_stock/small_caps_data/
 stock_analyzer/data/
-
-# yahoo_fin lib files
-yahoo_fin_master/
-
-linkedin.py
 
 
