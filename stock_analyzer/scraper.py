@@ -239,7 +239,7 @@ def change_region_filter(driver, region, previous_region):
 
 def scrape_all_tickers(driver):
     # save all tickers in a list
-    tickers = []
+    tickers = {}
     # loop until no more next page button
     while True:
         try: # see if next page button is present, scrape all tickers and then click next page button
@@ -249,7 +249,8 @@ def scrape_all_tickers(driver):
             all_tickers = driver.find_elements(By.XPATH, '//a[@class="ticker x-small hover logo stacked yf-5ogvqh"]')
             for ticker in all_tickers:
                 href = ticker.get_attribute('href')
-                tickers.append(href)
+                title = ticker.get_attribute('title')
+                tickers[title] = href
             time.sleep(10)
             print(f"len of tickers : {len(tickers)}")
             # click next page button
@@ -295,14 +296,22 @@ def scrape_stocks(market_cap_min="300M", market_cap_max="2B", regions=None, head
         change_market_cap_filter(driver, market_cap_min, market_cap_max)
 
         # store previous region
-        previous_region = "us"
+        previous_region = None
         
         # loop over possible regions
         for region in regions:
             print(f"previous_region : {previous_region}")
             print(f"region : {region['code']}")
             
-            if region["code"] == previous_region:
+            if previous_region is None:
+                # For the first region (US), we need to scrape
+                time.sleep(10)
+                driver.execute_script("window.scrollTo(0, 0);")
+                actions = ActionChains(driver)
+                actions.send_keys(Keys.HOME).perform()
+                tickers = scrape_all_tickers(driver)
+                previous_region = region["code"]
+            elif region["code"] == previous_region:
                 tickers = []
             else:
                 time.sleep(10)
@@ -317,11 +326,20 @@ def scrape_stocks(market_cap_min="300M", market_cap_max="2B", regions=None, head
             
             results[region["code"]] = tickers
             
-            # save tickers to a file
+            # Create DataFrame and save to CSV
             print(f"length of tickers : {len(tickers)}")
-            with open(f'fundamental_stock/small_caps_tickers_{region["code"]}.txt', 'w') as f:
-                for ticker in tickers:
-                    f.write(ticker + '\n')
+            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Create DataFrame
+            df = pd.DataFrame({
+                'symbol': [url.split('/')[-2] for url in tickers.values()],
+                'name': [name for name in tickers.keys()],
+                'country': region["code"],
+                'date': current_time
+            })
+            
+            # Save to CSV
+            df.to_csv(f'stock_analyzer/data/raw/small_caps_tickers_{region["code"]}.csv', index=False)
         
         return results
 
