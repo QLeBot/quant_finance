@@ -20,19 +20,19 @@ headers = {
     'Accept-Language': 'en-US,en;q=0.5',
 }
 
-# Set up Chrome options
-chrome_options = Options()
-#chrome_options.add_argument('--headless')  # Run in headless mode
-chrome_options.add_argument('--no-sandbox')
-chrome_options.add_argument('--disable-dev-shm-usage')  
-chrome_options.add_argument(f'user-agent={headers["User-Agent"]}')
-
-# Use webdriver-manager to handle driver installation
-service = Service(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service, options=chrome_options)
-driver.maximize_window()
-
-actions = ActionChains(driver)
+def initialize_driver(headless=False):
+    """Initialize and return a configured Chrome WebDriver."""
+    chrome_options = Options()
+    if headless:
+        chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument('--disable-dev-shm-usage')  
+    chrome_options.add_argument(f'user-agent={headers["User-Agent"]}')
+    
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver.maximize_window()
+    return driver
 
 # default US when loading the page
 regions = [
@@ -165,7 +165,7 @@ regions = [
 #region_codes = [region["code"] for region in regions]
 #print(f"region_codes : {region_codes}")
 
-def change_market_cap_filter(driver):
+def change_market_cap_filter(driver, market_cap_min, market_cap_max):
     # Market Cap
     #elmt:menu;itc:1;sec:screener-filter;subsec:custom-screener;elm:expand;slk:Market%20Cap%20(Intraday)
     #link2-btn fin-size-small menuBtn hover:tw-bg-[var(--table-hover-emph)] rightAlign yf-1cfb8vd
@@ -198,9 +198,9 @@ def change_market_cap_filter(driver):
     time.sleep(2)
 
     # send keys to both inputs
-    left_input.send_keys("300M")
+    left_input.send_keys(market_cap_min)
     time.sleep(2)
-    right_input.send_keys("2B")
+    right_input.send_keys(market_cap_max)
     time.sleep(2)
 
     # Apply Button
@@ -259,65 +259,79 @@ def scrape_all_tickers(driver):
         print("page changed")
     return tickers
 
-try :
-    url = "https://finance.yahoo.com/research-hub/screener/equity/?start=0&count=100"
-    print(f"url : {url}")
-    driver.get(url)
-
-    # decline all cookies if present
+def scrape_stocks(market_cap_min="300M", market_cap_max="2B", regions=None, headless=False):
+    """
+    Main function to scrape stock tickers based on market cap and regions.
+    
+    Args:
+        market_cap_min (str): Minimum market cap (e.g., "300M")
+        market_cap_max (str): Maximum market cap (e.g., "2B")
+        regions (list): List of region dictionaries to scrape. If None, uses all regions.
+        headless (bool): Whether to run Chrome in headless mode
+    
+    Returns:
+        dict: Dictionary mapping region codes to lists of ticker URLs
+    """
+    if regions is None:
+        regions = regions  # Use the default regions list defined above
+    
+    driver = None
+    results = {}
+    
     try:
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//button[@class="btn secondary reject-all"]'))).click()
-    except:
-        pass
+        driver = initialize_driver(headless)
+        url = "https://finance.yahoo.com/research-hub/screener/equity/?start=0&count=100"
+        driver.get(url)
 
-    # arrive on the page us is selected
-    time.sleep(10)
-    
-    # add market cap filter to small caps only have to set up once
-    change_market_cap_filter(driver)
+        # decline all cookies if present
+        try:
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//button[@class="btn secondary reject-all"]'))).click()
+        except:
+            pass
 
-    # loop over page and scrape all tickers
-    #scrape_all_tickers(driver)
+        time.sleep(10)
+        
+        # add market cap filter
+        change_market_cap_filter(driver, market_cap_min, market_cap_max)
 
-    # store previous region
-    previous_region = "us"
-    # loop over possible regions
-    for region in regions:
-        print(f"previous_region : {previous_region}")
-        print(f"region : {region['code']}")
-        if region["code"] == previous_region:
-            #tickers = scrape_all_tickers(driver)
-            tickers = []
-        else:
-            time.sleep(10)
-            driver.execute_script("window.scrollTo(0, 0);")
-            actions.send_keys(Keys.HOME).perform()
-            # change region filter
-            change_region_filter(driver, region, previous_region)
-            time.sleep(20)
-            # scrape all tickers
-            tickers = scrape_all_tickers(driver)
-            previous_region = region["code"]
-    
-        # save tickers to a file
-        print(f"length of tickers : {len(tickers)}")
-        with open(f'fundamental_stock/small_caps_tickers_{region["code"]}.txt', 'w') as f:
-            for ticker in tickers:
-                f.write(ticker + '\n')
+        # store previous region
+        previous_region = "us"
+        
+        # loop over possible regions
+        for region in regions:
+            print(f"previous_region : {previous_region}")
+            print(f"region : {region['code']}")
+            
+            if region["code"] == previous_region:
+                tickers = []
+            else:
+                time.sleep(10)
+                driver.execute_script("window.scrollTo(0, 0);")
+                actions = ActionChains(driver)
+                actions.send_keys(Keys.HOME).perform()
+                
+                change_region_filter(driver, region, previous_region)
+                time.sleep(20)
+                tickers = scrape_all_tickers(driver)
+                previous_region = region["code"]
+            
+            results[region["code"]] = tickers
+            
+            # save tickers to a file
+            print(f"length of tickers : {len(tickers)}")
+            with open(f'fundamental_stock/small_caps_tickers_{region["code"]}.txt', 'w') as f:
+                for ticker in tickers:
+                    f.write(ticker + '\n')
+        
+        return results
 
-    # All tickers
-    #all_tickers = driver.find_elements(By.XPATH, '//a[@class="ticker x-small hover logo stacked yf-5ogvqh"]')
-    #for ticker in all_tickers:
-    #    href = ticker.get_attribute('href')
-    #    print(href)
-    
-    
-    # next page button
-    # <button class="icon-btn fin-size-medium rounded yf-1cfb8vd" data-ylk="sec:screener-table;subsec:custom-screener;elm:arrow;itc:1;slk:next" data-testid="next-page-button" aria-label="Goto next page" data-rapid_p="334" data-v9y="1"><div aria-hidden="true" class="icon fin-icon inherit-icn sz-medium yf-9qlxtu"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"></path></svg></div> </button>
-    #WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//button[@data-ylk="sec:screener-table;subsec:custom-screener;elm:arrow;itc:1;slk:next"]'))).click()
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return results
+    finally:
+        if driver:
+            driver.quit()
 
-except Exception as e:
-    print(f"An error occurred: {str(e)}")
-finally:
-    if 'driver' in locals():
-        driver.quit()
+if __name__ == "__main__":
+    # Example usage when running this file directly
+    results = scrape_stocks()

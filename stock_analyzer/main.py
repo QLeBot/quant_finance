@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 import yfinance as yf
+
+import scraper
+
 load_dotenv()
 
 conn = psycopg2.connect(
@@ -158,9 +161,24 @@ def get_financial_data(ticker):
     # get the balance sheet
     balance_sheet = ticker.balance_sheet
     # get the income statement
-    income_statement = ticker.financials
+    #income_statement = ticker.financials
+    income_statement = ticker.get_income_stmt(freq='yearly')
     # get the cash flow statement
     cash_flow = ticker.cash_flow
+
+    # process the financials and create a dataframe with all the data
+    # create a dataframe with all the data
+    df = pd.DataFrame(columns=['Date', 'Revenue', 'Net Income', 'Cash Flow', 'Assets', 'Liabilities', 'Equity'])
+    for date, data in income_statement.items():
+        df = df.append({'Date': date, 'Revenue': data['Revenue'], 'Net Income': data['Net Income'], 'Cash Flow': data['Cash Flow'], 'Assets': data['Assets'], 'Liabilities': data['Liabilities'], 'Equity': data['Equity']}, ignore_index=True)
+    print(df)
+    # save the dataframe to a csv file
+    df.to_csv('stock_analyzer/data/financials.csv', index=False)
+    # save the balance sheet to a csv file
+    balance_sheet.to_csv('stock_analyzer/data/balance_sheet.csv', index=False)
+    # save the cash flow statement to a csv file
+    cash_flow.to_csv('stock_analyzer/data/cash_flow.csv', index=False)
+    
     return balance_sheet, income_statement, cash_flow
 
 
@@ -178,9 +196,10 @@ for file in os.listdir("stock_analyzer/data/raw"):
             # get stock data from the file each line is a stock with symbol to split
             stock_data = [line.split("/")[-2] for line in file.readlines()]
 
-            temp = stock_data[0]
+            temp = stock_data[0][0]
             print(temp)
             print(get_info(temp))
+            print(get_financial_data(temp))
             #for symbol in stock_data:
             #    print(stock_found(symbol))
 
@@ -198,3 +217,27 @@ file.close()
 
 cursor.close()
 conn.close()
+
+from scraper import scrape_stocks
+
+def main():
+    # Example 1: Basic usage with default parameters
+    results = scrape_stocks()
+    print("Basic scraping completed")
+    
+    # Example 2: Custom market cap range
+    # results = scrape_stocks(market_cap_min="500M", market_cap_max="5B")
+    
+    # Example 3: Specific regions only
+    # custom_regions = [
+    #     {"code": "us", "name": "United States"},
+    #     {"code": "gb", "name": "United Kingdom"},
+    #     {"code": "fr", "name": "France"}
+    # ]
+    # results = scrape_stocks(regions=custom_regions)
+    
+    # Example 4: Headless mode
+    # results = scrape_stocks(headless=True)
+
+if __name__ == "__main__":
+    main()
