@@ -141,34 +141,93 @@ regions = [
     }
 ]
 
-# Create a table for country data
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS country (
-        country_id SERIAL PRIMARY KEY,
-        country_code VARCHAR(2) NOT NULL,
-        country_name VARCHAR(255)
-    );
-""")
+def initialize_country_table():
+    """Create a table for country data if it doesn't exist."""
+    try:
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS country (
+            country_code VARCHAR(2) PRIMARY KEY,
+            country_name VARCHAR(255)
+        );
+        """)
+        conn.commit()
+        print("Country table created or already exists")
+    except Exception as e:
+        print(f"Error creating country table: {e}")
 
-# insert country data into the database
-args_str = ','.join(cursor.mogrify("(%s,%s)", (x['code'], x['name'])).decode('utf-8') for x in regions)
-cursor.execute("INSERT INTO country (country_code, country_name) VALUES " + (args_str))
+    # insert country data into the database
+    args_str = ','.join(cursor.mogrify("(%s,%s)", (x['code'], x['name'])).decode('utf-8') for x in regions)
+    cursor.execute("INSERT INTO country (country_code, country_name) VALUES " + (args_str))
+    conn.commit()
+    print("Country data inserted into the database")
 
-# Drop the stock_data table for testing purposes
-cursor.execute("DROP TABLE IF EXISTS stock")
+def initialize_stock_table():
+    """Create a table for stock data if it doesn't exist."""
+    try:
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS stock (
+            symbol VARCHAR(20) PRIMARY KEY,
+            name VARCHAR(255),
+            country_code VARCHAR(2),
+            date_added TIMESTAMP,
+            CONSTRAINT fk_country
+            FOREIGN KEY (country_code)
+            REFERENCES country(country_code)
+        );
+        """)
+        conn.commit()
+        print("Stock table created or already exists")
+    except Exception as e:
+        print(f"Error creating stock table: {e}")
 
-# Create a table for stock data
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS stock (
-        stock_id SERIAL PRIMARY KEY,
-        stock_symbol VARCHAR(20) NOT NULL,
-        stock_name VARCHAR(255),
-        country_id INT,
-        stock_sector VARCHAR(255),
-        stock_industry VARCHAR(255),
-        FOREIGN KEY (country_id) REFERENCES country(country_id)
-    );
-""")
+def initialize_financial_ratios_table():
+    """Create the financial ratios table if it doesn't exist."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS financial_ratios (
+                    id SERIAL PRIMARY KEY,
+                    symbol VARCHAR(20),
+                    name VARCHAR(255),
+                    country VARCHAR(2),
+                    sector VARCHAR(100),
+                    industry VARCHAR(100),
+                    market_cap NUMERIC,
+                    date DATE,
+                    enterprise_value NUMERIC,
+                    price_per_share NUMERIC,
+                    price_per_earning NUMERIC,
+                    enterprise_value_per_ebitda NUMERIC,
+                    price_per_free_cash_flow NUMERIC,
+                    enterprise_value_per_free_cash_flow NUMERIC,
+                    roe NUMERIC,
+                    roic NUMERIC,
+                    cash_ratio NUMERIC,
+                    current_ratio NUMERIC,
+                    quick_ratio NUMERIC,
+                    debt_to_equity NUMERIC,
+                    dividend_yield NUMERIC,
+                    payout_ratio NUMERIC,
+                    gross_margin NUMERIC,
+                    operating_margin NUMERIC,
+                    net_margin NUMERIC
+                );
+            """)
+            conn.commit()
+            print("Financial ratios table created or already exists")
+    except Exception as e:
+        print(f"Error creating financial ratios table: {e}")
+
+def main():
+    #initialize_country_table()
+    #initialize_stock_table()
+    initialize_financial_ratios_table()
+    conn.commit()
+    conn.close()
+
+if __name__ == "__main__":
+    main()
+
 
 
 

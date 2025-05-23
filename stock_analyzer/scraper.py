@@ -12,6 +12,71 @@ import os
 import json
 from datetime import datetime
 import pandas as pd
+import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Database configuration
+DB_CONFIG = {
+    'dbname': os.getenv('DB_DEV_NAME'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'host': os.getenv('DB_HOST'),
+    'port': os.getenv('DB_PORT')
+}
+
+def get_db_connection():
+    """Create a connection to PostgreSQL database."""
+    return psycopg2.connect(**DB_CONFIG)
+
+def create_stock_table():
+    """Create the stock table if it doesn't exist."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS stock (
+                    symbol VARCHAR(20) PRIMARY KEY,
+                    name VARCHAR(255),
+                    country_code VARCHAR(2),
+                    date_added TIMESTAMP,
+                    CONSTRAINT fk_country
+                        FOREIGN KEY (country_code)
+                        REFERENCES country(country_code)
+                );
+            """)
+            conn.commit()
+            print("Stock table created or already exists")
+    except Exception as e:
+        print(f"Error creating stock table: {e}")
+    finally:
+        conn.close()
+
+def save_tickers_to_db(tickers, country_code):
+    """Save a batch of tickers to PostgreSQL database."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            # Prepare the data for batch insert
+            data = [(url.split('/')[-2], name, country_code, datetime.now()) 
+                   for name, url in tickers.items()]
+            
+            # Use executemany for batch insert
+            cur.executemany("""
+                INSERT INTO stock (symbol, name, country_code, date_added)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (symbol) DO UPDATE 
+                SET name = EXCLUDED.name,
+                    country_code = EXCLUDED.country_code,
+                    date_added = EXCLUDED.date_added
+            """, data)
+            conn.commit()
+            print(f"Successfully saved {len(data)} tickers to database")
+    except Exception as e:
+        print(f"Error saving tickers to database: {e}")
+    finally:
+        conn.close()
 
 # Set up headers to mimic a browser
 headers = {
@@ -237,7 +302,7 @@ def change_region_filter(driver, region, previous_region):
     print(f"region {region["code"]} click success")
     
 
-def scrape_all_tickers(driver):
+def scrape_all_tickers(driver, country_code):
     # save all tickers in a list
     tickers = {}
     # loop until no more next page button
@@ -247,10 +312,17 @@ def scrape_all_tickers(driver):
             time.sleep(10)
             # get all tickers
             all_tickers = driver.find_elements(By.XPATH, '//a[@class="ticker x-small hover logo stacked yf-5ogvqh"]')
+            page_tickers = {}
             for ticker in all_tickers:
                 href = ticker.get_attribute('href')
                 title = ticker.get_attribute('title')
+                page_tickers[title] = href
                 tickers[title] = href
+            
+            # Save the current page's tickers to database
+            if page_tickers:
+                save_tickers_to_db(page_tickers, country_code)
+            
             time.sleep(10)
             print(f"len of tickers : {len(tickers)}")
             # click next page button
@@ -275,6 +347,9 @@ def scrape_stocks(market_cap_min="300M", market_cap_max="2B", regions=None, head
     """
     if regions is None:
         regions = regions  # Use the default regions list defined above
+    
+    # Initialize database table
+    create_stock_table()
     
     driver = None
     results = {}
@@ -309,7 +384,7 @@ def scrape_stocks(market_cap_min="300M", market_cap_max="2B", regions=None, head
                 driver.execute_script("window.scrollTo(0, 0);")
                 actions = ActionChains(driver)
                 actions.send_keys(Keys.HOME).perform()
-                tickers = scrape_all_tickers(driver)
+                tickers = scrape_all_tickers(driver, region["code"])
                 previous_region = region["code"]
             elif region["code"] == previous_region:
                 tickers = []
@@ -321,7 +396,7 @@ def scrape_stocks(market_cap_min="300M", market_cap_max="2B", regions=None, head
                 
                 change_region_filter(driver, region, previous_region)
                 time.sleep(20)
-                tickers = scrape_all_tickers(driver)
+                tickers = scrape_all_tickers(driver, region["code"])
                 previous_region = region["code"]
             
             results[region["code"]] = tickers
