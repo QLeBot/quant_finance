@@ -32,3 +32,5 @@ dependencies:
       - apache-airflow
       - kafka-python
       - psycopg2-binary
+      - hmmlearn
+      - hurst
