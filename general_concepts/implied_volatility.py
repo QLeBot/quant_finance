@@ -27,15 +27,22 @@ def black_scholes(S, K, T, r, sigma, option_type='call'):
     sigma: volatility
     option_type: 'call' or 'put'
     """
-    d1 = (np.log(S/K) + (r + sigma**2/2)*T) / (sigma*np.sqrt(T))
-    d2 = d1 - sigma*np.sqrt(T)
-    
-    if option_type == 'call':
-        price = S*norm.cdf(d1) - K*np.exp(-r*T)*norm.cdf(d2)
-    else:
-        price = K*np.exp(-r*T)*norm.cdf(-d2) - S*norm.cdf(-d1)
-    
-    return price
+    # Input validation
+    if S <= 0 or K <= 0 or T <= 0 or sigma <= 0:
+        return np.nan
+        
+    try:
+        d1 = (np.log(S/K) + (r + ((sigma**2)/2)) * T) / (sigma * np.sqrt(T))
+        d2 = d1 - sigma * np.sqrt(T)
+        
+        if option_type == 'call':
+            price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+        else:
+            price = K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+        
+        return price
+    except (ValueError, ZeroDivisionError):
+        return np.nan
 
 def implied_volatility(price, S, K, T, r, option_type='call'):
     """
@@ -152,7 +159,7 @@ def plot_implied_volatility_surface_3d(ticker, max_years=3):
     # Add labels
     ax.set_xlabel('Moneyness (M = S/K)')
     ax.set_ylabel('Time to Expiration (T)')
-    ax.set_zlabel('Implied Volatility $\sigma$(T, M)')
+    ax.set_zlabel(r'Implied Volatility $\sigma$(T, M)')
     
     # Add title
     plt.title(f'Implied Volatility Surface for {ticker} (up to {max_years} years)')
@@ -171,4 +178,4 @@ def plot_implied_volatility_surface_3d(ticker, max_years=3):
 
 if __name__ == "__main__":
     # Example usage with 3 years of expiration dates
-    plot_implied_volatility_surface_3d('AAPL', max_years=3)
+    plot_implied_volatility_surface_3d('SPY', max_years=3)

@@ -258,7 +258,7 @@ class ShortPutStrategy(Strategy):
         return atr
 
 # Load historical data
-data = yf.download("AAPL", start="2021-01-01", end="2024-12-31", auto_adjust=True)
+data = yf.download("SPY", start="2021-01-01", end="2024-12-31", auto_adjust=True)
 
 # Create a new DataFrame with the required structure
 backtest_data = pd.DataFrame(index=data.index)

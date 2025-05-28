@@ -34,3 +34,4 @@ dependencies:
       - psycopg2-binary
       - hmmlearn
       - hurst
+      - qfin
