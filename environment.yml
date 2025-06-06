@@ -6,6 +6,7 @@ dependencies:
   - python=3.12
   - numpy
   - pandas
+  - polars
   - scikit-learn
   - xgboost
   - tensorflow
