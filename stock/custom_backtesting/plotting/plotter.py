@@ -149,7 +149,7 @@ class Plotter:
             if i == 0:  # Only plot buy & hold once
                 ax.plot(strategy_df["timestamp"].to_numpy(), 
                        strategy_df["bh_portfolio_value"].to_numpy(), 
-                       color="blue", 
+                       color="black", 
                        linestyle="--", 
                        label="Buy & Hold Value")
         

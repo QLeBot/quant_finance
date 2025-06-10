@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from data.data_handler import DataHandler
 from strategies.trend_following_strategy import TrendFollowingStrategy
 from strategies.mean_reversion_strategy import MeanReversionStrategy
+from strategies.strat_1 import Strategy_1
 from plotting.plotter import Plotter
 
 def main():
@@ -18,8 +19,9 @@ def main():
     
     # Initialize strategies
     strategies = {
-        "Trend Following": TrendFollowingStrategy(df.clone(), ticker, initial_capital),
-        "Mean Reversion": MeanReversionStrategy(df.clone(), ticker, initial_capital)
+        #"Trend Following": TrendFollowingStrategy(df.clone(), ticker, initial_capital),
+        #"Mean Reversion": MeanReversionStrategy(df.clone(), ticker, initial_capital),
+        "Strategy 1": Strategy_1(df.clone(), ticker, initial_capital)
     }
     
     # Calculate indicators and generate signals for each strategy
