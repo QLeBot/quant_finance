@@ -19,6 +19,7 @@ dependencies:
   - alpaca-py
   - bs4
   - selenium
+  - requests
   - pip
   - pip:
       - backtesting
