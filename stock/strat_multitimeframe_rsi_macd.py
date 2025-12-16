@@ -1,3 +1,6 @@
+import truststore
+truststore.inject_into_ssl()
+
 import os
 import pandas as pd
 import numpy as np

@@ -9,8 +9,8 @@ dependencies:
   - polars
   - scikit-learn
   - xgboost
-  - tensorflow
-  - keras
+  #- tensorflow
+  #- keras
   - scipy
   - matplotlib
   - plotly
