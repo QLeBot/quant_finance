@@ -1,3 +1,6 @@
+import truststore
+truststore.inject_into_ssl()
+
 import os
 import pandas as pd
 import numpy as np
@@ -27,7 +30,7 @@ API_SECRET = os.getenv('ALPACA_SECRET_KEY')
 stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
 
 # Parameters
-symbols = ["NVDA"]
+symbols = ["SPY"]
 initial_cash = 10000
 start_date = datetime.datetime(2013, 1, 1)
 #end_date = datetime.datetime.now() - datetime.timedelta(days=10)
