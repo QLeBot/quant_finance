@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 import yfinance as yf
 
-tickers = ['NVDA']
+tickers = ['SPY']
 for ticker in tickers:
     ticker_yahoo = yf.Ticker(ticker)
     data = ticker_yahoo.history()

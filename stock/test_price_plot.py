@@ -1,3 +1,6 @@
+import truststore
+truststore.inject_into_ssl()
+
 import os
 import pandas as pd
 import numpy as np
@@ -25,12 +28,13 @@ stock_client = StockHistoricalDataClient(API_KEY, API_SECRET)
 #symbols = ["NVDA", "SPY", "TSLA", "MC.PA", "ATO", "ATOS"]
 #symbols = ["NVDA"]
 #symbols = ["NVDA", "ATOS"]
-symbols = ["NVDA", "ATOS" , "ATO"]
-#symbols = ["SPY"]
+#symbols = ["NVDA", "ATOS" , "ATO"]
+symbols = ["SPY"]
 initial_cash = 10000
 
-start_date = datetime.datetime(2022, 1, 1)
-end_date = datetime.datetime(2024, 12, 31)
+start_date = datetime.datetime(2000, 1, 1)
+#end_date = datetime.datetime(2024, 12, 31)
+end_date = datetime.datetime.now() - datetime.timedelta(days=2)
 
 # Request 1-hour data for primary analysis and 4-hour data for confirmation
 request_params_1h = StockBarsRequest(
