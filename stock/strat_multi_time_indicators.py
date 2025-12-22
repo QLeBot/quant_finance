@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import yfinance as yf
 
 from backtesting import Backtest, Strategy
+from backtesting.lib import TrailingStrategy
+
 from ta.momentum import RSIIndicator
 from ta.trend import MACD
 from ta.trend import ADXIndicator
@@ -192,7 +194,7 @@ timeframes = [all_data_1h, all_data_4h, all_data_day, all_data_week]
 all_data = [compute_indicators(df) for df in timeframes]
 all_data_1h, all_data_4h, all_data_day, all_data_week = all_data
 
-class MultiTimeframeRSIMACDStrategy(Strategy):
+class MultiTimeframeRSIMACDStrategy(TrailingStrategy):
     rsi_threshold = 30
     allow_short = False
     risk_per_trade = 0.01        # 1% of equity at risk
@@ -204,6 +206,8 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
 
     
     def init(self):
+        super().init()
+        self.set_trailing_sl(3.0)  # ATR multiplier for trailing stop
         # Convert the backtesting data to a DataFrame for merging
         df_1h = pd.DataFrame({
             'timestamp': self.data.index,
@@ -384,6 +388,7 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
         return rsi, macd, macd_signal, macd_hist, rsi_cross, macd_cross
     
     def next(self):
+        super().next()
         idx = len(self.data) - 1
         row = self.multi_tf_data.iloc[idx]
 
@@ -407,20 +412,9 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
         # 1H momentum "freshness" (lightweight)
         macd_hist_up = self.macd_hist[-1] > self.macd_hist[-2]
 
-        # ---- Trailing stop management ----
-        if self.position and self.position.is_long and self.trades:
-            # Find the most recent OPEN trade (usually the last one)
-            trade = next((t for t in reversed(self.trades) if t.is_open), None)
-            if trade is not None:
-                atr = self.atr_1h[-1]
-                if np.isfinite(atr) and atr > 0:
-                    new_sl = self.data.Close[-1] - 3.0 * atr
-                    # Only raise stop (never loosen)
-                    if trade.sl is None or new_sl > trade.sl:
-                        trade.sl = new_sl
-
         # ---- Exit logic: hold winners in weekly uptrend ----
         exit_long = (not trend_long) or (not above_200)  # simple, strong
+        
         if self.position and self.position.is_long:
             if idx - self.last_entry_bar < self.min_hold_bars:
                 exit_long = False
@@ -434,7 +428,8 @@ class MultiTimeframeRSIMACDStrategy(Strategy):
             return
 
         # ---- Entry logic (less strict for higher exposure) ----
-        long_confirmed = trend_long and above_200 and reclaim_50 and (adx_ok or (trend_up and macd_hist_up))
+        long_confirmed = trend_long and above_200 and reclaim_50 #and (adx_ok or (trend_up and macd_hist_up))
+        
         if long_confirmed and not self.position:
             atr = self.atr_1h[-1]
             if not np.isfinite(atr) or atr <= 0:
